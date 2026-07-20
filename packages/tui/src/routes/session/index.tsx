@@ -1162,6 +1162,19 @@ export function Session() {
   // snap to bottom when session changes
   createEffect(on(() => route.sessionID, toBottom))
 
+  // Auto-return to orchestrator agent after task completion
+  createEffect(() => {
+    const status = sync.data.session_status[route.sessionID]
+    if (status?.type === "idle") {
+      const current = local.agent.current()
+      // If on a specialist agent (not auto, not build), return to auto
+      if (current && current.name !== "auto" && current.name !== "build") {
+        // Small delay to ensure any queued messages are processed first
+        setTimeout(() => local.agent.set("auto"), 500)
+      }
+    }
+  })
+
   return (
     <LocationProvider location={location()}>
       <context.Provider

@@ -966,11 +966,22 @@ export function Prompt(props: PromptProps) {
     }
 
     // Auto-switch agent based on message content
+    // Only switch if not already on the auto orchestrator
     if (agent.name !== "auto") {
       const { detectAgent, detectPipelineCommand } = await import("../auto-agent")
       const pipCmd = detectPipelineCommand(trimmed)
       const recommended = pipCmd ?? detectAgent(trimmed)
       if (recommended && recommended !== agent.name) {
+        local.agent.set(recommended)
+      }
+    }
+
+    // If on auto agent, detect if message is a direct command to a specialist
+    if (agent.name === "auto") {
+      const { detectAgent, detectPipelineCommand } = await import("../auto-agent")
+      const pipCmd = detectPipelineCommand(trimmed)
+      const recommended = pipCmd ?? detectAgent(trimmed)
+      if (recommended && recommended !== "auto") {
         local.agent.set(recommended)
       }
     }

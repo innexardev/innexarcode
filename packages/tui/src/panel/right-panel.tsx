@@ -9,6 +9,7 @@ import { getScrollAcceleration } from "../util/scroll"
 import { useTuiConfig } from "../config"
 import { ArtifactPanel, type ArtifactItem } from "../panel/artifacts"
 import { createArtifactStore } from "../panel/artifact-store"
+import { Cockpit } from "../panel/cockpit"
 
 type PipelinePhase =
   | "discovery"
@@ -230,6 +231,9 @@ export function RightPanel(props: { sessionID: string; width: number }) {
               </box>
             )}
           </Show>
+
+          {/* Engineering Cockpit */}
+          <Cockpit width={props.width - 4} />
 
           <box>
             <box
