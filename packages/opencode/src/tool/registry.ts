@@ -31,6 +31,7 @@ import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
 import { GateTool } from "./gate"
+import { PipelineAdvanceTool } from "./pipeline-advance"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -113,6 +114,7 @@ const layer = Layer.effect(
     const skilltool = yield* SkillTool
     const contextengine = yield* ContextEngineTool
     const gatetool = yield* GateTool
+    const pipelineadvance = yield* PipelineAdvanceTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -220,6 +222,7 @@ const layer = Layer.effect(
           skill: Tool.init(skilltool),
           contextEngine: Tool.init(contextengine),
           gate: Tool.init(gatetool),
+          pipelineAdvance: Tool.init(pipelineadvance),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
@@ -246,6 +249,7 @@ const layer = Layer.effect(
             tool.patch,
             tool.contextEngine,
             tool.gate,
+            tool.pipelineAdvance,
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),

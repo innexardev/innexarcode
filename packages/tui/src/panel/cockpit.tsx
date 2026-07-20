@@ -1,7 +1,9 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show, onMount } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useLocal } from "../context/local"
+import { useSync } from "../context/sync"
+import { useRoute } from "../context/route"
 
 const PIPELINE = [
   "discovery", "research", "planning", "architecture", "debate",
@@ -29,8 +31,8 @@ const AGENT_PHASE_MAP: Record<string, string> = {
 }
 
 const PHASE_AGENT: Record<string, string> = {
-  discovery: "auto", research: "auto", planning: "planner",
-  architecture: "architect", debate: "auto", implementation: "auto",
+  discovery: "explore", research: "general", planning: "planner",
+  architecture: "architect", debate: "general", implementation: "general",
   review: "code-reviewer", qa: "qa", security: "security",
   "self-critique": "auditor", question: "questionador",
   audit: "auditor", delivery: "release-manager",
@@ -39,9 +41,50 @@ const PHASE_AGENT: Record<string, string> = {
 export function Cockpit(props: { width: number }) {
   const { theme } = useTheme()
   const local = useLocal()
+  const sync = useSync()
+  const route = useRoute()
+
+  // Get session ID from route
+  const sessionID = createMemo(() => 
+    route.data.type === "session" ? route.data.sessionID : undefined
+  )
+
+  // Detect pipeline phase from tool calls in messages
+  const pipelinePhaseFromTools = createMemo(() => {
+    const sid = sessionID()
+    if (!sid) return undefined
+    const messages = sync.data.message[sid] ?? []
+    // Search backwards for pipeline-advance tool calls
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      if (msg.role !== "assistant") continue
+      const parts = sync.data.part[msg.id] ?? []
+      for (let j = parts.length - 1; j >= 0; j--) {
+        const part = parts[j]
+        if (part.type === "tool" && (part as any).tool === "pipeline-advance") {
+          try {
+            const result = (part as any).state?.result
+            const data = result ? JSON.parse(result) : null
+            if (data?.currentPhase) return data.currentPhase
+          } catch {}
+          // Try from tool input
+          try {
+            const input = (part as any).state?.input
+            const data = input ? JSON.parse(input) : null
+            if (data?.phase) return data.phase
+          } catch {}
+        }
+      }
+    }
+    return undefined
+  })
 
   const currentAgent = createMemo(() => local.agent.current())
+
+  // Pipeline phase: from tool calls if available, otherwise from current agent
   const currentPhase = createMemo(() => {
+    const fromTools = pipelinePhaseFromTools()
+    if (fromTools) return fromTools
     const a = currentAgent()
     return a ? AGENT_PHASE_MAP[a.name] : undefined
   })
