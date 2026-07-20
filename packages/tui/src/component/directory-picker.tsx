@@ -4,6 +4,7 @@ import { useTheme } from "../context/theme"
 import { useRoute } from "../context/route"
 import { useSDK } from "../context/sdk"
 import { useSync } from "../context/sync"
+import { useProject } from "../context/project"
 
 const HOME_DIR = "/root"
 
@@ -19,10 +20,16 @@ export function DirectoryPicker(props: { width: number }) {
   const route = useRoute()
   const sdk = useSDK()
   const sync = useSync()
+  const project = useProject()
 
-  const [currentPath, setCurrentPath] = createSignal(HOME_DIR)
+  const startDir = createMemo(() => {
+    const dir = project.instance.directory()
+    return dir || "/root"
+  })
+
+  const [currentPath, setCurrentPath] = createSignal("/root")
   const [entries, setEntries] = createSignal<DirEntry[]>([])
-  const [history, setHistory] = createSignal<string[]>([HOME_DIR])
+  const [history, setHistory] = createSignal<string[]>(["/root"])
   const [loading, setLoading] = createSignal(false)
   const [error, setError] = createSignal<string | undefined>()
 
@@ -112,7 +119,10 @@ export function DirectoryPicker(props: { width: number }) {
   }
 
   onMount(() => {
-    scanDir(HOME_DIR)
+    const dir = startDir()
+    setCurrentPath(dir)
+    setHistory([dir])
+    scanDir(dir)
   })
 
   // Keyboard: backspace goes up
