@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, For, Show, createSignal, onMount } from "solid-js"
+import { createMemo, For, Show, createSignal } from "solid-js"
 import { useRoute } from "../context/route"
 import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
@@ -104,43 +104,7 @@ export function RightPanel(props: { sessionID: string; width: number }) {
 
   const artifactStore = createArtifactStore()
 
-  onMount(() => {
-    const now = Date.now()
-    artifactStore.add({
-      id: "artifact-1",
-      title: "README.md",
-      type: "markdown",
-      size: 1240,
-      lines: 28,
-      tokens: 310,
-      content: "# Project\n\nThis is the project...",
-      preview: "# Project\n\nThis is the project...",
-      createdAt: now,
-    })
-    artifactStore.add({
-      id: "artifact-2",
-      title: "api-handler.ts",
-      type: "code",
-      language: "typescript",
-      size: 3650,
-      lines: 92,
-      tokens: 880,
-      content: "export function handleRequest...",
-      preview: "export function handleRequest...",
-      createdAt: now,
-    })
-    artifactStore.add({
-      id: "artifact-3",
-      title: "schema.sql",
-      type: "sql",
-      size: 2100,
-      lines: 45,
-      tokens: 520,
-      content: "CREATE TABLE users...",
-      preview: "CREATE TABLE users...",
-      createdAt: now,
-    })
-  })
+  // No sample artifacts — only real ones from the session
 
   const artifactItems = createMemo((): ArtifactItem[] =>
     artifactStore.items.map((item) => ({

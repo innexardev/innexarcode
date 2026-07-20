@@ -1,10 +1,7 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, createSignal, For, Show, onMount } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
-import { useSync } from "../context/sync"
 import { useLocal } from "../context/local"
-import { useRoute } from "../context/route"
-import type { RGBA } from "@opentui/core"
 
 const PIPELINE = [
   "discovery", "research", "planning", "architecture", "debate",
@@ -41,9 +38,7 @@ const PHASE_AGENT: Record<string, string> = {
 
 export function Cockpit(props: { width: number }) {
   const { theme } = useTheme()
-  const sync = useSync()
   const local = useLocal()
-  const route = useRoute()
 
   const currentAgent = createMemo(() => local.agent.current())
   const currentPhase = createMemo(() => {
@@ -56,136 +51,72 @@ export function Cockpit(props: { width: number }) {
     return p ? PIPELINE.indexOf(p as typeof PIPELINE[number]) : -1
   })
 
-  // Simulated quality scores (static for now, would come from QualityEngine)
-  const quality = [
-    { label: "Arch", score: 96, color: "success" as const },
-    { label: "Back", score: 94, color: "success" as const },
-    { label: "Front", score: 88, color: "warning" as const },
-    { label: "Sec", score: 96, color: "success" as const },
-  ]
-
-  const toggleMission = () => {}
-  const sessionCount = createMemo(() => sync.data.session.length)
-
-  // Bar helper
-  const bar = (pct: number, color: RGBA, w: number) => {
+  const bar = (pct: number, w: number) => {
     const f = Math.max(1, Math.floor((pct / 100) * (w - 2)))
     const e = Math.max(0, w - 2 - f)
-    return (
-      <text>
-        <text fg={color}>{"█".repeat(f)}</text>
-        <text fg={theme.textMuted}>{"░".repeat(e)}</text>
-        <text fg={theme.text}>{` ${pct}%`}</text>
-      </text>
-    )
+    return { filled: "\u2588".repeat(f), empty: "\u2591".repeat(e), pct }
   }
 
-  const sel = (w: number) => Math.max(1, w - 4)
+  const agentName = createMemo(() => currentAgent()?.name ?? "build")
 
   return (
     <box flexShrink={0} gap={1} paddingRight={1}>
-      {/* MISSION section */}
       <text fg={theme.primary}><b>MISSION</b></text>
-      <Show when={currentPhase()}>
+
+      <Show when={currentPhase() && phaseIdx() >= 0} fallback={
+        <text fg={theme.textMuted}>Agent: {agentName()} — no active pipeline</text>
+      }>
+        {/* Progress bar — box with multiple text elements */}
         <Show when={phaseIdx() >= 0}>
-          {bar(Math.round(((phaseIdx() + 1) / PIPELINE.length) * 100), theme.primary, sel(props.width))}
+          {(() => {
+            const b = bar(Math.round(((phaseIdx() + 1) / PIPELINE.length) * 100), Math.max(5, props.width - 6))
+            return (
+              <box flexDirection="row" gap={0}>
+                <text fg={theme.primary}>{b.filled}</text>
+                <text fg={theme.textMuted}>{b.empty}</text>
+                <text fg={theme.text}>{` ${b.pct}%`}</text>
+              </box>
+            )
+          })()}
+        </Show>
+
+        {/* Pipeline indicator — plain text with separators */}
+        <text fg={theme.textMuted}>
+          {PIPELINE.map((p, i) => {
+            const idx = phaseIdx()
+            const icon = i < idx ? "\u25A3" : i === idx ? "\u25C9" : "\u25CB"
+            return icon + PHASE_LABELS[p]
+          }).join(" ")}
+        </text>
+
+        <text fg={theme.textMuted}>{"\u2500".repeat(12)}</text>
+
+        {/* Agent per phase */}
+        <text fg={theme.textMuted}>
+          {PIPELINE.map((p, i) => {
+            const idx = phaseIdx()
+            const a = PHASE_AGENT[p]
+            const icon = i < idx ? "\u25A3" : i === idx ? "\u25C9" : "\u25CB"
+            return icon + a.substring(0, 3)
+          }).join(" ")}
+        </text>
+
+        <text fg={theme.textMuted}>{"\u2500".repeat(12)}</text>
+
+        {/* Next step */}
+        <Show when={phaseIdx() < PIPELINE.length - 1}>
+          <text fg={theme.text}>Next: {PHASE_AGENT[PIPELINE[phaseIdx() + 1]]} ({PHASE_LABELS[PIPELINE[phaseIdx() + 1]]})</text>
         </Show>
       </Show>
 
-      {/* Pipeline horizontal — compact, one line per phase */}
-      <Show when={currentPhase()}>
-        <text fg={theme.textMuted}>
-          <For each={PIPELINE}>
-            {(phase, i) => {
-              const idx = phaseIdx()
-              const c = i() < idx ? theme.success : i() === idx ? theme.primary : theme.textMuted
-              const icon = i() < idx ? "▣" : i() === idx ? "◉" : "○"
-              return (
-                <span>
-                  <span style={{ fg: c }}>{icon}</span>
-                  <span style={{ fg: c }}>{PHASE_LABELS[phase]}</span>
-                  {i() < PIPELINE.length - 1 ? <span> </span> : null}
-                </span>
-              )
-            }}
-          </For>
-        </text>
-      </Show>
-
-      <text fg={theme.textMuted}>──────────────</text>
-
-      {/* Agent status per pipeline phase */}
-      <Show when={currentAgent()}>
-        <text fg={theme.textMuted}>
-          <For each={PIPELINE}>
-            {(phase, i) => {
-              const idx = phaseIdx()
-              const agent = PHASE_AGENT[phase]
-              const isDone = i() < idx
-              const isCurrent = i() === idx
-              const icon = isDone ? "▣" : isCurrent ? "◉" : "○"
-              const c = isDone ? theme.success : isCurrent ? theme.primary : theme.textMuted
-              return (
-                <span>
-                  <span style={{ fg: c }}>{icon}</span>
-                  <span style={{ fg: isCurrent ? c : theme.textMuted }}>{agent.substring(0, 3)}</span>
-                  {i() < PIPELINE.length - 1 ? <span> </span> : null}
-                </span>
-              )
-            }}
-          </For>
-        </text>
-      </Show>
-
-      <text fg={theme.textMuted}>──────────────</text>
-
-      {/* Quality compact */}
-      <text fg={theme.textMuted}>
-        <For each={quality}>
-          {(q) => (
-            <span>
-              <span style={{ fg: theme[q.color] }}>{q.score}</span>
-              <span style={{ fg: theme.textMuted }}>{q.label}</span>
-              <span> </span>
-            </span>
-          )}
-        </For>
-      </text>
-
-      <text fg={theme.textMuted}>──────────────</text>
-
-      {/* Metrics row */}
-      <text fg={theme.textMuted}>
-        <span style={{ fg: theme.success }}>▣</span> Build
-        <span> </span>
-        <span style={{ fg: theme.textMuted }}>Cov 91%</span>
-        <span> </span>
-        <span style={{ fg: theme.info }}>Ctx 68%</span>
-      </text>
-
-      <text fg={theme.textMuted}>──────────────</text>
-
-      {/* Next steps */}
-      <text fg={theme.text}><b>Next</b></text>
-      <Show when={phaseIdx() >= 0 && phaseIdx() < PIPELINE.length - 1}>
-        <text fg={theme.secondary}>
-          → {PHASE_AGENT[PIPELINE[Math.min(phaseIdx() + 1, PIPELINE.length - 1)]]}
-        </text>
-        <text fg={theme.textMuted}>
-          → {PHASE_LABELS[PIPELINE[Math.min(phaseIdx() + 1, PIPELINE.length - 1)]]}
-        </text>
-      </Show>
-
-      {/* Clickable phases: go to phase agent */}
-      <text fg={theme.textMuted}>──────────────</text>
+      {/* Clickable phase shortcuts */}
+      <text fg={theme.textMuted}>{"\u2500".repeat(14)}</text>
       <box flexDirection="row" gap={1} flexWrap="wrap">
         <For each={PIPELINE}>
           {(phase) => {
             const agent = PHASE_AGENT[phase]
             return (
-              <box
-                onMouseUp={() => agent && local.agent.set(agent)}
-              >
+              <box onMouseUp={() => agent && local.agent.set(agent)}>
                 <text fg={theme.text}>{PHASE_LABELS[phase]}</text>
               </box>
             )
