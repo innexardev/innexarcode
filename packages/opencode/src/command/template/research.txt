@@ -1,0 +1,18 @@
+Run Research phase for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+1. Identify any APIs, frameworks, or libraries the task depends on.
+2. Use `research` tool and official docs to confirm:
+   - best practices
+   - breaking changes
+   - recommended SDK usage
+3. Save findings to `.opencode/research/YYYY-MM-DD-topic.md`
+4. Return a short decision brief:
+   - chosen approach
+   - key constraints
+   - risks to watch
+
+Never guess APIs. Research first, then summarize.

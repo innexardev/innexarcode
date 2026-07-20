@@ -1,0 +1,18 @@
+Run Planning phase for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+1. Create a plan markdown in `.opencode/plans/YYYY-MM-DD-tarefa.md`
+2. Include:
+   - objective
+   - scope
+   - acceptance criteria
+   - task breakdown
+   - dependencies
+3. Review the plan for missing items:
+   - auth, logging, audit, rate limit, cache, backup, seeds
+4. Return the plan path and a one-paragraph summary.
+
+Use `todowrite` to track tasks. Do not implement yet.

@@ -9,6 +9,14 @@ import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import PROMPT_DISCOVER from "./template/discover.txt"
+import PROMPT_RESEARCH from "./template/research.txt"
+import PROMPT_PLAN_CREATE from "./template/plan-create.txt"
+import PROMPT_PLAN_REVIEW from "./template/plan-review.txt"
+import PROMPT_DEBATE from "./template/debate.txt"
+import PROMPT_SELF_CRITIQUE from "./template/self-critique.txt"
+import PROMPT_AUDIT_REPORT from "./template/audit-report.txt"
+import PROMPT_DELIVER from "./template/deliver.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
@@ -46,6 +54,14 @@ export function hints(template: string) {
 export const Default = {
   INIT: "init",
   REVIEW: "review",
+  DISCOVER: "discover",
+  RESEARCH: "research",
+  PLAN_CREATE: "plan-create",
+  PLAN_REVIEW: "plan-review",
+  DEBATE: "debate",
+  SELF_CRITIQUE: "self-critique",
+  AUDIT_REPORT: "audit-report",
+  DELIVER: "deliver",
 } as const
 
 export interface Interface {
@@ -85,6 +101,70 @@ const layer = Layer.effect(
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      }
+      commands[Default.DISCOVER] = {
+        name: Default.DISCOVER,
+        description: "Engineering OS Discovery phase: scan project and save .opencode/project.json",
+        source: "command",
+        template: PROMPT_DISCOVER,
+        subtask: true,
+        hints: hints(PROMPT_DISCOVER),
+      }
+      commands[Default.RESEARCH] = {
+        name: Default.RESEARCH,
+        description: "Engineering OS Research phase: research APIs/frameworks before coding",
+        source: "command",
+        template: PROMPT_RESEARCH,
+        subtask: true,
+        hints: hints(PROMPT_RESEARCH),
+      }
+      commands[Default.PLAN_CREATE] = {
+        name: Default.PLAN_CREATE,
+        description: "Engineering OS Planning phase: create .opencode/plans/YYYY-MM-DD-task.md",
+        source: "command",
+        template: PROMPT_PLAN_CREATE,
+        subtask: true,
+        hints: hints(PROMPT_PLAN_CREATE),
+      }
+      commands[Default.PLAN_REVIEW] = {
+        name: Default.PLAN_REVIEW,
+        description: "Engineering OS Plan Review: review plan for completeness and risks",
+        source: "command",
+        template: PROMPT_PLAN_REVIEW,
+        subtask: true,
+        hints: hints(PROMPT_PLAN_REVIEW),
+      }
+      commands[Default.DEBATE] = {
+        name: Default.DEBATE,
+        description: "Engineering OS Debate phase: multi-agent review of proposal",
+        source: "command",
+        template: PROMPT_DEBATE,
+        subtask: true,
+        hints: hints(PROMPT_DEBATE),
+      }
+      commands[Default.AUDIT_REPORT] = {
+        name: Default.AUDIT_REPORT,
+        description: "Engineering OS Audit phase: comprehensive audit report with scorecard",
+        source: "command",
+        template: PROMPT_AUDIT_REPORT,
+        subtask: true,
+        hints: hints(PROMPT_AUDIT_REPORT),
+      }
+      commands[Default.DELIVER] = {
+        name: Default.DELIVER,
+        description: "Engineering OS Delivery phase: release checklist gate",
+        source: "command",
+        template: PROMPT_DELIVER,
+        subtask: true,
+        hints: hints(PROMPT_DELIVER),
+      }
+      commands[Default.SELF_CRITIQUE] = {
+        name: Default.SELF_CRITIQUE,
+        description: "Engineering OS Self-Critique: find incomplete, duplicated, dead, insecure code",
+        source: "command",
+        template: PROMPT_SELF_CRITIQUE,
+        subtask: true,
+        hints: hints(PROMPT_SELF_CRITIQUE),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

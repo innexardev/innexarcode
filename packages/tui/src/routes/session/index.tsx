@@ -14,6 +14,8 @@ import {
   untrack,
   useContext,
 } from "solid-js"
+import { LeftPanel } from "../../panel/left-panel"
+import { RightPanel } from "../../panel/right-panel"
 import { Dynamic } from "solid-js/web"
 import path from "node:path"
 import { mkdir, writeFile } from "node:fs/promises"
@@ -53,7 +55,6 @@ import { DialogConfirm } from "../../ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
-import { Sidebar } from "./sidebar"
 import { SubagentFooter } from "./subagent-footer.tsx"
 import { filetype } from "../../util/filetype"
 import parsers from "../../parsers-config"
@@ -123,6 +124,7 @@ const sessionBindingCommands = [
   "session.undo",
   "session.redo",
   "session.sidebar.toggle",
+  "session.right.toggle",
   "session.toggle.conceal",
   "session.toggle.timestamps",
   "session.toggle.thinking",
@@ -267,8 +269,17 @@ export function Session() {
     if (sidebar() === "auto" && wide()) return true
     return false
   })
+  const [rightPanelVisible, setRightPanelVisible] = createSignal(true)
   const showTimestamps = createMemo(() => timestamps() === "show")
-  const contentWidth = createMemo(() => dimensions().width - (sidebarVisible() ? 42 : 0) - 4)
+  const leftPanelWidth = createMemo(() => {
+    if (!sidebarVisible()) return 0
+    return Math.max(28, Math.floor(dimensions().width * 0.22))
+  })
+  const rightPanelWidth = createMemo(() => {
+    if (!rightPanelVisible()) return 0
+    return Math.max(24, Math.floor(dimensions().width * 0.18))
+  })
+  const contentWidth = createMemo(() => dimensions().width - leftPanelWidth() - rightPanelWidth() - 4)
   const providers = createMemo(() => Model.index(sync.data.provider))
 
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
@@ -673,6 +684,15 @@ export function Session() {
           setSidebar(() => (isVisible ? "hide" : "auto"))
           setSidebarOpen(!isVisible)
         })
+        dialog.clear()
+      },
+    },
+    {
+      title: rightPanelVisible() ? "Hide right panel" : "Show right panel",
+      value: "session.right.toggle",
+      category: "Session",
+      run: () => {
+        setRightPanelVisible((prev) => !prev)
         dialog.clear()
       },
     },
@@ -1163,6 +1183,12 @@ export function Session() {
         }}
       >
         <box flexDirection="row" flexGrow={1} minHeight={0}>
+          <Show when={sidebarVisible() && session()}>
+            <LeftPanel sessionID={route.sessionID} width={leftPanelWidth()} />
+          </Show>
+          <Show when={sidebarVisible() && session()}>
+            <box width={1} backgroundColor={theme.border} flexShrink={0} />
+          </Show>
           <box flexGrow={1} minHeight={0} paddingBottom={1} paddingLeft={2} paddingRight={2} gap={1}>
             <Show when={session()}>
               <scrollbox
@@ -1321,25 +1347,11 @@ export function Session() {
             </Show>
             <Toast />
           </box>
-          <Show when={sidebarVisible()}>
-            <Switch>
-              <Match when={wide()}>
-                <Sidebar sessionID={route.sessionID} />
-              </Match>
-              <Match when={!wide()}>
-                <box
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  right={0}
-                  bottom={0}
-                  alignItems="flex-end"
-                  backgroundColor={RGBA.fromInts(0, 0, 0, 70)}
-                >
-                  <Sidebar sessionID={route.sessionID} />
-                </box>
-              </Match>
-            </Switch>
+          <Show when={rightPanelVisible() && session()}>
+            <box width={1} backgroundColor={theme.border} flexShrink={0} />
+          </Show>
+          <Show when={rightPanelVisible() && session()}>
+            <RightPanel sessionID={route.sessionID} width={rightPanelWidth()} />
           </Show>
         </box>
       </context.Provider>

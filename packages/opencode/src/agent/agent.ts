@@ -14,6 +14,7 @@ import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import PROMPT_AUTO from "./prompt/auto.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@opencode-ai/core/global"
@@ -136,6 +137,64 @@ const layer = Layer.effect(
         })
 
         const user = Permission.fromConfig(cfg.permission ?? {})
+
+        const agentColors: Record<string, string> = {
+          auto: "#00b4d8",
+          planner: "#7b2d8e",
+          architect: "#f72585",
+          "qa": "#4cc9f0",
+          "qa-breaker": "#e63946",
+          "code-reviewer": "#2a9d8f",
+          questionador: "#e9c46a",
+          security: "#d62828",
+          auditor: "#264653",
+          a11y: "#2d6a4f",
+          performance: "#e76f51",
+          refactor: "#52796f",
+          documentation: "#457b9d",
+          "release-manager": "#1d3557",
+          po: "#6d597a",
+          ceo: "#b56576",
+          cto: "#219ebc",
+          teacher: "#8ecae6",
+          mentor: "#ffb703",
+          "design-critic": "#c77dff",
+          "ux-reviewer": "#7ec8e3",
+        }
+
+        const engosPermissions = Permission.merge(
+          defaults,
+          Permission.fromConfig({
+            question: "allow",
+            plan_enter: "allow",
+            plan_exit: "allow",
+            todowrite: "allow",
+            edit: {
+              "*": "deny",
+            },
+            write: {
+              "*": "deny",
+            },
+            apply_patch: {
+              "*": "deny",
+            },
+            task: {
+              "*": "allow",
+            },
+          }),
+        )
+
+        const engosAgent = (name: string, description: string, hidden = false, prompt?: string): Info => ({
+          name,
+          description,
+          options: {},
+          permission: Permission.merge(engosPermissions, user),
+          mode: "all",
+          native: true,
+          hidden,
+          color: agentColors[name],
+          prompt,
+        })
 
         const agents: Record<string, Info> = {
           build: {
@@ -262,6 +321,66 @@ const layer = Layer.effect(
             ),
             prompt: PROMPT_SUMMARY,
           },
+
+          // ── Engineering OS — Execution ──
+          auto: engosAgent("auto",
+            `Auto — orchestrateur multi-agente. Planeia, delega, valida e entrega.`, false, PROMPT_AUTO),
+          planner: engosAgent("planner",
+            `Planner — orquestrador de subagentes. Decide quem participa, breakdown em DAG, coordena paralelismo.`),
+          architect: engosAgent("architect",
+            `Architect — ADRs, interfaces, schema, decisoes tecnicas, documentacao arquitetural.`),
+
+          // ── Qualidade ──
+          qa: engosAgent("qa",
+            `QA — testes, cobertura, cenario de borda, validacao funcional.`),
+          "qa-breaker": engosAgent("qa-breaker",
+            `QA Breaker — tenta quebrar a aplicacao. Nao escreve codigo, so acha falhas.`),
+          "code-reviewer": engosAgent("code-reviewer",
+            `Code Reviewer — bugs, security, performance, correctness. Revisao multi-eixo.`),
+          questionador: engosAgent("questionador",
+            `Questionador — "O que pode estar faltando?" ate ninguem achar nada.`),
+
+          // ── Seguranca ──
+          security: engosAgent("security",
+            `Security — OWASP Top 10, injection, secrets, auth, threat modeling.`),
+          auditor: engosAgent("auditor",
+            `Auditor — consultor externo que acha o que os outros agentes deixaram passar.`),
+          a11y: engosAgent("a11y",
+            `A11y — WCAG, daltonismo, screen readers, contraste, acessibilidade.`),
+
+          // ── UX/Design ──
+          "ux-reviewer": engosAgent("ux-reviewer",
+            `UX Reviewer — navegacao, contraste, acessibilidade, responsividade, fluxo.`),
+          "design-critic": engosAgent("design-critic",
+            `Design Critic — avalia UI pronta: moderna, premium, parece template?`),
+
+          // ── Performance ──
+          performance: engosAgent("performance",
+            `Performance — bundle, queries, rendering, cache, metrics.`),
+
+          // ── Refatoracao ──
+          refactor: engosAgent("refactor",
+            `Refactor — duplicacao, complexidade, codigo morto, extracao, cleanup.`),
+
+          // ── Documentacao ──
+          documentation: engosAgent("documentation",
+            `Documentation — memory/, README, API docs, ADRs, changelog.`),
+
+          // ── Gestao ──
+          "release-manager": engosAgent("release-manager",
+            `Release Manager — checklist obrigatoria. So libera se tudo passar.`),
+          po: engosAgent("po",
+            `PO — roadmap, sprints, backlog, epics, stories, acceptance criteria.`),
+
+          // ── Consultoria ──
+          ceo: engosAgent("ceo",
+            `CEO — avalia valor de negocio, impacto financeiro, priorizacao estrategica.`),
+          cto: engosAgent("cto",
+            `CTO — arquitetura, estrategia tecnica, decisoes cross-cutting, tech debt.`),
+          teacher: engosAgent("teacher",
+            `Teacher — explica decisoes tecnicas, por que X foi escolhido em vez de Y.`),
+          mentor: engosAgent("mentor",
+            `Mentor — code smells, melhorias, boas praticas, crescimento do dev.`),
         }
 
         for (const [key, value] of Object.entries(cfg.agent ?? {})) {

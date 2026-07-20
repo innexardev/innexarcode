@@ -1,0 +1,19 @@
+Run Audit phase for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+1. Generate a comprehensive audit report covering:
+   - files changed
+   - coverage
+   - performance
+   - security
+   - problems found
+   - pending items
+   - recommendations
+2. Include an SVG scorecard.
+3. Use `audit-report` tool if available; otherwise use available tools to collect metrics.
+4. Save the report to `.opencode/audit/YYYY-MM-DD-audit.md`.
+
+Return the report path and the final score.

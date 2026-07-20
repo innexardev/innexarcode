@@ -1,0 +1,20 @@
+Run Self-Critique for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+Before finalizing work, check for:
+- Incomplete code (stubs, TODOs, placeholders)
+- Duplicated code
+- Dead code (unused variables, functions, imports)
+- Orphaned routes or endpoints
+- Insecure endpoints (no auth, no validation)
+- Missing environment variables or .env documentation
+- Missing error handling
+- Missing logging
+- Missing tests
+- Hardcoded values that should be configurable
+
+Use available tools to verify. Report all issues found with file:line references.
+Do NOT fix issues — just report them.
