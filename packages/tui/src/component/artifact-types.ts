@@ -1,0 +1,17 @@
+export const ARTIFACT_STYLES: Record<string, { icon: string; color: string; label: string }> = {
+  code: { icon: "📄", color: "secondary", label: "Code" },
+  log: { icon: "📋", color: "warning", label: "Log" },
+  json: { icon: "📋", color: "info", label: "JSON" },
+  image: { icon: "🖼", color: "success", label: "Image" },
+  pdf: { icon: "📕", color: "error", label: "PDF" },
+  docx: { icon: "📄", color: "primary", label: "Document" },
+  archive: { icon: "📦", color: "warning", label: "Archive" },
+  csv: { icon: "📊", color: "info", label: "CSV" },
+  sql: { icon: "🗄", color: "info", label: "SQL" },
+  diff: { icon: "📑", color: "success", label: "Diff" },
+  error: { icon: "❌", color: "error", label: "Error" },
+  markdown: { icon: "📝", color: "primary", label: "Markdown" },
+  yaml: { icon: "📋", color: "warning", label: "YAML" },
+  xml: { icon: "📋", color: "info", label: "XML" },
+  text: { icon: "📄", color: "textMuted", label: "Text" },
+}

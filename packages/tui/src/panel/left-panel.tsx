@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, Show } from "solid-js"
+import { createMemo, createSignal, Show } from "solid-js"
 import { useProject } from "../context/project"
 import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
@@ -9,6 +9,26 @@ import { InstallationChannel, InstallationVersion } from "@opencode-ai/core/inst
 import { getScrollAcceleration } from "../util/scroll"
 import { WorkspaceLabel } from "../component/workspace-label"
 import { useTuiPaths } from "../context/runtime"
+import { FileExplorer, buildFileTree } from "./explorer"
+
+const samplePaths = [
+  "packages/tui/src/panel/left-panel.tsx",
+  "packages/tui/src/panel/explorer.tsx",
+  "packages/tui/src/panel/right-panel.tsx",
+  "packages/tui/src/panel/mission-control.tsx",
+  "packages/tui/src/context/theme.tsx",
+  "packages/tui/src/context/sync.tsx",
+  "packages/tui/src/routes/session/index.tsx",
+  "packages/tui/src/feature-plugins/sidebar/files.tsx",
+  "packages/tui/src/feature-plugins/sidebar/context.tsx",
+  "packages/tui/src/component/workspace-label.tsx",
+  "packages/tui/src/util/locale.ts",
+  "package.json",
+  "tsconfig.json",
+  "README.md",
+]
+
+const sampleFiles = buildFileTree(samplePaths)
 
 export function LeftPanel(props: { sessionID: string; width: number }) {
   const pluginRuntime = usePluginRuntime()
@@ -24,6 +44,7 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
     if (!workspaceID) return
     return project.workspace.get(workspaceID)
   }
+  const [filesOpen, setFilesOpen] = createSignal(true)
 
   return (
     <Show when={session()}>
@@ -85,6 +106,18 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
             </pluginRuntime.Slot>
 
             <pluginRuntime.Slot name="sidebar_content" session_id={props.sessionID} />
+
+            <box>
+              <box flexDirection="row" gap={1} onMouseDown={() => setFilesOpen((x) => !x)}>
+                <text fg={theme.text}>{filesOpen() ? "▼" : "▶"}</text>
+                <text fg={theme.text}>
+                  <b>Files</b>
+                </text>
+              </box>
+              <Show when={filesOpen()}>
+                <FileExplorer files={sampleFiles} width={props.width - 4} />
+              </Show>
+            </box>
           </box>
         </scrollbox>
 

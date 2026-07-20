@@ -1,0 +1,18 @@
+# Quality Gate Checklist
+
+Before delivery, verify ALL gates pass:
+
+1. Build — project compiles without errors
+2. Lint — no linting errors or warnings
+3. Types — TypeScript typecheck passes
+4. Tests — all tests pass
+5. Coverage — coverage meets threshold (>=80%)
+6. Security — no known vulnerabilities
+7. Docker — Dockerfile exists and builds
+8. Deploy — deployment config is valid
+
+If ANY gate fails:
+  -> Fix the issue
+  -> Re-run the gate
+  -> Re-run all downstream gates
+  -> Only then proceed to delivery

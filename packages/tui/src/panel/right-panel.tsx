@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, For, Show, createSignal } from "solid-js"
+import { createMemo, For, Show, createSignal, onMount } from "solid-js"
 import { useRoute } from "../context/route"
 import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
@@ -7,6 +7,8 @@ import { useLocal } from "../context/local"
 import { Locale } from "../util/locale"
 import { getScrollAcceleration } from "../util/scroll"
 import { useTuiConfig } from "../config"
+import { ArtifactPanel, type ArtifactItem } from "../panel/artifacts"
+import { createArtifactStore } from "../panel/artifact-store"
 
 type PipelinePhase =
   | "discovery"
@@ -80,6 +82,60 @@ export function RightPanel(props: { sessionID: string; width: number }) {
 
   const [pipelineOpen, setPipelineOpen] = createSignal(true)
   const [sessionsOpen, setSessionsOpen] = createSignal(true)
+  const [artifactsOpen, setArtifactsOpen] = createSignal(true)
+
+  const artifactStore = createArtifactStore()
+
+  onMount(() => {
+    const now = Date.now()
+    artifactStore.add({
+      id: "artifact-1",
+      title: "README.md",
+      type: "markdown",
+      size: 1240,
+      lines: 28,
+      tokens: 310,
+      content: "# Project\n\nThis is the project...",
+      preview: "# Project\n\nThis is the project...",
+      createdAt: now,
+    })
+    artifactStore.add({
+      id: "artifact-2",
+      title: "api-handler.ts",
+      type: "code",
+      language: "typescript",
+      size: 3650,
+      lines: 92,
+      tokens: 880,
+      content: "export function handleRequest...",
+      preview: "export function handleRequest...",
+      createdAt: now,
+    })
+    artifactStore.add({
+      id: "artifact-3",
+      title: "schema.sql",
+      type: "sql",
+      size: 2100,
+      lines: 45,
+      tokens: 520,
+      content: "CREATE TABLE users...",
+      preview: "CREATE TABLE users...",
+      createdAt: now,
+    })
+  })
+
+  const artifactItems = createMemo((): ArtifactItem[] =>
+    artifactStore.items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      language: item.language,
+      size: item.size,
+      lines: item.lines,
+      tokens: item.tokens,
+      preview: item.preview,
+    })),
+  )
 
   // Derive pipeline phase from current agent
   const pipelinePhase = createMemo<PipelinePhase | undefined>(() => {
@@ -227,6 +283,27 @@ export function RightPanel(props: { sessionID: string; width: number }) {
                   </box>
                 )}
               </For>
+            </Show>
+          </box>
+
+          <box>
+            <box
+              flexDirection="row"
+              gap={1}
+              onMouseDown={() => setArtifactsOpen((x) => !x)}
+            >
+              <text fg={theme.text}>{artifactsOpen() ? "▼" : "▶"}</text>
+              <text fg={theme.text}>
+                <b>Artifacts</b>
+              </text>
+              <text fg={theme.textMuted}>({artifactStore.total()})</text>
+            </box>
+            <Show when={artifactsOpen()}>
+              <ArtifactPanel
+                width={props.width - 4}
+                artifacts={artifactItems()}
+                onRemove={(id) => artifactStore.remove(id)}
+              />
             </Show>
           </box>
         </box>

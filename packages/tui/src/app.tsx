@@ -53,6 +53,7 @@ import { DialogConsoleOrg } from "./component/dialog-console-org"
 import { ThemeProvider, useTheme } from "./context/theme"
 import { Home } from "./routes/home"
 import { Session } from "./routes/session"
+import { MissionView } from "./routes/mission"
 import { PromptHistoryProvider } from "./component/prompt/history"
 import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
@@ -92,6 +93,7 @@ registerOpencodeSpinner()
 const appGlobalBindingCommands = [
   "session.list",
   "session.new",
+  "app.mission",
   "session.quick_switch.1",
   "session.quick_switch.2",
   "session.quick_switch.3",
@@ -130,6 +132,7 @@ const appBindingCommands = [
   "app.debug",
   "app.console",
   "app.heap_snapshot",
+  "app.mission",
   "terminal.suspend",
   "terminal.title.toggle",
   "app.toggle.animations",
@@ -137,6 +140,7 @@ const appBindingCommands = [
   "app.toggle.diffwrap",
   "app.toggle.paste_summary",
   "app.toggle.session_directory_filter",
+  "app.palette",
 ] as const
 
 export type TuiInput = {
@@ -467,6 +471,11 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
       const title = session.title.length > 40 ? session.title.slice(0, 37) + "..." : session.title
       renderer.setTerminalTitle(`OC | ${title}`)
+      return
+    }
+
+    if (route.data.type === "mission") {
+      renderer.setTerminalTitle("OC | Mission Control")
       return
     }
 
@@ -807,6 +816,16 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         category: "System",
       },
       {
+        name: "app.mission",
+        title: "Open Mission Control",
+        slashName: "mission",
+        run: () => {
+          route.navigate({ type: "mission" })
+          dialog.clear()
+        },
+        category: "System",
+      },
+      {
         name: "help.show",
         title: "Help",
         slashName: "help",
@@ -839,6 +858,14 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         run: () => {
           renderer.toggleDebugOverlay()
           dialog.clear()
+        },
+      },
+      {
+        name: "app.palette",
+        title: "Open command palette",
+        category: "System",
+        run: () => {
+          dialog.replace(() => <CommandPaletteDialog />)
         },
       },
       {
@@ -1117,6 +1144,9 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
               <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
                 {(_) => <Session />}
               </Show>
+            </Match>
+            <Match when={route.data.type === "mission"}>
+              <MissionView />
             </Match>
           </Switch>
           {plugin()}

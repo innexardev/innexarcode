@@ -10,6 +10,7 @@ import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import PROMPT_DISCOVER from "./template/discover.txt"
+import PROMPT_EXPLORE from "./template/explore.txt"
 import PROMPT_RESEARCH from "./template/research.txt"
 import PROMPT_PLAN_CREATE from "./template/plan-create.txt"
 import PROMPT_PLAN_REVIEW from "./template/plan-review.txt"
@@ -55,6 +56,7 @@ export const Default = {
   INIT: "init",
   REVIEW: "review",
   DISCOVER: "discover",
+  EXPLORE: "explore",
   RESEARCH: "research",
   PLAN_CREATE: "plan-create",
   PLAN_REVIEW: "plan-review",
@@ -109,6 +111,14 @@ const layer = Layer.effect(
         template: PROMPT_DISCOVER,
         subtask: true,
         hints: hints(PROMPT_DISCOVER),
+      }
+      commands[Default.EXPLORE] = {
+        name: Default.EXPLORE,
+        description: "Engineering OS Explore phase: navigate and map project file tree",
+        source: "command",
+        template: PROMPT_EXPLORE,
+        subtask: true,
+        hints: hints(PROMPT_EXPLORE),
       }
       commands[Default.RESEARCH] = {
         name: Default.RESEARCH,
