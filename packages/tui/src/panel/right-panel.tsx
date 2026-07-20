@@ -72,6 +72,23 @@ const AGENT_PHASE_MAP: Record<string, PipelinePhase | undefined> = {
   questionador: "question",
 }
 
+// Reverse map: from pipeline phase to recommended agent
+const PHASE_AGENT_MAP: Record<string, string> = {
+  discovery: "auto",
+  research: "auto",
+  planning: "planner",
+  architecture: "architect",
+  debate: "auto",
+  implementation: "auto",
+  review: "code-reviewer",
+  qa: "qa",
+  security: "security",
+  "self-critique": "auditor",
+  question: "questionador",
+  audit: "auditor",
+  delivery: "release-manager",
+}
+
 export function RightPanel(props: { sessionID: string; width: number }) {
   const route = useRoute()
   const sync = useSync()
@@ -270,18 +287,29 @@ export function RightPanel(props: { sessionID: string; width: number }) {
             </box>
             <Show when={pipelineOpen()}>
               <For each={PIPELINE_PHASES}>
-                {(phase) => (
-                  <box flexDirection="row" gap={1}>
-                    <text fg={phaseColor(phase)}>{phaseIcon(phase)}</text>
-                    <text
-                      fg={phaseColor(phase)}
-                      wrapMode="none"
-                      maxWidth={props.width - 4}
+                {(phase) => {
+                  const agentForPhase = PHASE_AGENT_MAP[phase]
+                  return (
+                    <box
+                      flexDirection="row" gap={1}
+                      onMouseUp={() => {
+                        if (agentForPhase) local.agent.set(agentForPhase)
+                      }}
                     >
-                      {PIPELINE_LABELS[phase]}
-                    </text>
-                  </box>
-                )}
+                      <text fg={phaseColor(phase)}>{phaseIcon(phase)}</text>
+                      <text
+                        fg={phaseColor(phase)}
+                        wrapMode="none"
+                        maxWidth={props.width - 10}
+                      >
+                        {PIPELINE_LABELS[phase]}
+                      </text>
+                      <Show when={agentForPhase}>
+                        <text fg={theme.textMuted}>({agentForPhase})</text>
+                      </Show>
+                    </box>
+                  )
+                }}
               </For>
             </Show>
           </box>

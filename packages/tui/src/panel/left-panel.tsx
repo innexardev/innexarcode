@@ -1,34 +1,17 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, createSignal, Show } from "solid-js"
+import { createMemo, createSignal, Show, onMount } from "solid-js"
 import { useProject } from "../context/project"
 import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
 import { useTuiConfig } from "../config"
 import { usePluginRuntime } from "../plugin/runtime"
+import { useSDK } from "../context/sdk"
 import { InstallationChannel, InstallationVersion } from "@opencode-ai/core/installation/version"
 import { getScrollAcceleration } from "../util/scroll"
 import { WorkspaceLabel } from "../component/workspace-label"
 import { useTuiPaths } from "../context/runtime"
 import { FileExplorer, buildFileTree } from "./explorer"
-
-const samplePaths = [
-  "packages/tui/src/panel/left-panel.tsx",
-  "packages/tui/src/panel/explorer.tsx",
-  "packages/tui/src/panel/right-panel.tsx",
-  "packages/tui/src/panel/mission-control.tsx",
-  "packages/tui/src/context/theme.tsx",
-  "packages/tui/src/context/sync.tsx",
-  "packages/tui/src/routes/session/index.tsx",
-  "packages/tui/src/feature-plugins/sidebar/files.tsx",
-  "packages/tui/src/feature-plugins/sidebar/context.tsx",
-  "packages/tui/src/component/workspace-label.tsx",
-  "packages/tui/src/util/locale.ts",
-  "package.json",
-  "tsconfig.json",
-  "README.md",
-]
-
-const sampleFiles = buildFileTree(samplePaths)
+import type { FileTreeItem } from "./explorer"
 
 export function LeftPanel(props: { sessionID: string; width: number }) {
   const pluginRuntime = usePluginRuntime()
@@ -37,6 +20,7 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
   const { theme } = useTheme()
   const tuiConfig = useTuiConfig()
   const paths = useTuiPaths()
+  const sdk = useSDK()
   const session = createMemo(() => sync.session.get(props.sessionID))
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
   const workspace = () => {
@@ -45,6 +29,45 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
     return project.workspace.get(workspaceID)
   }
   const [filesOpen, setFilesOpen] = createSignal(true)
+  const [fileTree, setFileTree] = createSignal<FileTreeItem[]>([])
+  const [filesLoading, setFilesLoading] = createSignal(true)
+
+  async function loadFiles() {
+    const dir = project.instance.directory()
+    if (!dir || dir === "/root") {
+      setFilesLoading(false)
+      return
+    }
+    setFilesLoading(true)
+    try {
+      // Get all project files via find API
+      const resp = await sdk.client.find.files({
+        query: "",
+        type: "file" as const,
+        limit: 500,
+        throwOnError: false,
+      } as any)
+
+      if (resp?.data && Array.isArray(resp.data) && resp.data.length > 0) {
+        const prefix = dir.endsWith("/") ? dir : dir + "/"
+        const relPaths = resp.data
+          .filter((p: string) => p.startsWith(prefix))
+          .map((p: string) => p.slice(prefix.length))
+          .filter((p: string) => !p.startsWith(".") && !p.includes("node_modules"))
+        setFileTree(buildFileTree(relPaths))
+      } else {
+        // Fallback: list root dir files
+        const list = await sdk.client.file.list({ path: dir, throwOnError: false } as any)
+        if (list?.data) {
+          const names = list.data.map((e: any) => e.name)
+          setFileTree(buildFileTree(names))
+        }
+      }
+    } catch {}
+    setFilesLoading(false)
+  }
+
+  onMount(loadFiles)
 
   return (
     <Show when={session()}>
@@ -113,9 +136,23 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
                 <text fg={theme.text}>
                   <b>Files</b>
                 </text>
+                <Show when={filesLoading()}>
+                  <text fg={theme.textMuted}>loading...</text>
+                </Show>
+                <Show when={!filesLoading() && fileTree().length > 0}>
+                  <text fg={theme.textMuted}>({fileTree().length})</text>
+                </Show>
               </box>
               <Show when={filesOpen()}>
-                <FileExplorer files={sampleFiles} width={props.width - 4} />
+                <Show when={filesLoading()}>
+                  <text fg={theme.textMuted}>Scanning project files...</text>
+                </Show>
+                <Show when={!filesLoading() && fileTree().length > 0}>
+                  <FileExplorer files={fileTree()} width={props.width - 4} />
+                </Show>
+                <Show when={!filesLoading() && fileTree().length === 0}>
+                  <text fg={theme.textMuted}>No files found</text>
+                </Show>
               </Show>
             </box>
           </box>
