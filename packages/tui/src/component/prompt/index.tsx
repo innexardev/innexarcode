@@ -964,6 +964,16 @@ export function Prompt(props: PromptProps) {
       void exit()
       return true
     }
+
+    // Auto-switch agent based on message content
+    if (agent.name !== "auto") {
+      const { detectAgent, detectPipelineCommand } = await import("../auto-agent")
+      const pipCmd = detectPipelineCommand(trimmed)
+      const recommended = pipCmd ?? detectAgent(trimmed)
+      if (recommended && recommended !== agent.name) {
+        local.agent.set(recommended)
+      }
+    }
     const selectedModel = local.model.current()
     if (!selectedModel) {
       void promptModelWarning()
