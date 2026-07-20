@@ -16,6 +16,7 @@ import PROMPT_PLAN_CREATE from "./template/plan-create.txt"
 import PROMPT_PLAN_REVIEW from "./template/plan-review.txt"
 import PROMPT_DEBATE from "./template/debate.txt"
 import PROMPT_SELF_CRITIQUE from "./template/self-critique.txt"
+import PROMPT_ATTACH from "./template/attach.txt"
 import PROMPT_AUDIT_REPORT from "./template/audit-report.txt"
 import PROMPT_DELIVER from "./template/deliver.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
@@ -62,6 +63,7 @@ export const Default = {
   PLAN_REVIEW: "plan-review",
   DEBATE: "debate",
   SELF_CRITIQUE: "self-critique",
+  ATTACH: "attach",
   AUDIT_REPORT: "audit-report",
   DELIVER: "deliver",
 } as const
@@ -175,6 +177,14 @@ const layer = Layer.effect(
         template: PROMPT_SELF_CRITIQUE,
         subtask: true,
         hints: hints(PROMPT_SELF_CRITIQUE),
+      }
+      commands[Default.ATTACH] = {
+        name: Default.ATTACH,
+        description: "Attach a file to the conversation (images, PDFs, text)",
+        source: "command",
+        template: PROMPT_ATTACH,
+        subtask: true,
+        hints: hints(PROMPT_ATTACH),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

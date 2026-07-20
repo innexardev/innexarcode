@@ -1,0 +1,15 @@
+Attach a file to the conversation.
+
+$ARGUMENTS
+
+## Usage
+
+Provide the file path as argument:
+```
+/attach /path/to/file.png
+/attach /path/to/document.pdf
+/attach /path/to/image.jpg
+```
+
+The agent will read the file and include it in context.
+Supported: images (png, jpg, gif, webp, svg), PDFs, text files.
