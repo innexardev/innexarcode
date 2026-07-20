@@ -1,0 +1,60 @@
+Execute the COMPLETE Engineering OS pipeline (all 13 phases).
+
+$ARGUMENTS
+
+## RULE: Execute ALL phases in order. NEVER skip.
+
+Use `task` tool to delegate each phase to the right sub-agent.
+After each phase completes, IMMEDIATELY proceed to the next.
+
+## Phase 1: DISCOVERY → explore
+Scan project, save `.opencode/project.json`
+
+## Phase 2: RESEARCH → general
+Research APIs, frameworks, best practices
+
+## Phase 3: PLANNING → planner
+Create `.opencode/plans/YYYY-MM-DD-tarefa.md`
+
+## Phase 4: ARCHITECTURE → architect
+ADRs, interfaces, schema, technical decisions
+
+## Phase 5: DEBATE → general
+Multi-agent review of proposal
+
+## Phase 6: IMPLEMENTATION → general
+Implement the solution
+
+## Phase 7: REVIEW → code-reviewer
+Code review
+
+## Phase 8: QA → qa
+Tests, coverage, break attempts
+
+## Phase 9: SECURITY → security
+OWASP, injection, auth, secrets
+
+## Phase 10: SELF-CRITIQUE → auditor
+Find incomplete, dead, duplicated, insecure code
+
+## Phase 11: QUESTION → questionador
+"What might be missing?" until nothing found
+
+## Phase 12: AUDIT → auditor
+Comprehensive audit report with scorecard
+
+## Phase 13: DELIVERY → release-manager
+Final checklist: build→lint→types→tests→coverage→security→docs→deploy
+
+## Skill Auto-Selection
+For each phase, check if a relevant skill exists:
+- /skill list to see available skills
+- Use `/skill-name` if a skill matches the task
+- Skills provide specialized expertise for each phase
+
+## Rules
+- Announce each phase: "→ [Phase N/13]: [Name]"
+- On completion: "✓ Phase N complete → starting Phase N+1"
+- If fail: fix → retry → proceed
+- NEVER ask permission to advance
+- Complete all 13 phases

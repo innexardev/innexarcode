@@ -17,6 +17,7 @@ import PROMPT_PLAN_REVIEW from "./template/plan-review.txt"
 import PROMPT_DEBATE from "./template/debate.txt"
 import PROMPT_SELF_CRITIQUE from "./template/self-critique.txt"
 import PROMPT_ATTACH from "./template/attach.txt"
+import PROMPT_PIPELINE from "./template/pipeline.txt"
 import PROMPT_AUDIT_REPORT from "./template/audit-report.txt"
 import PROMPT_DELIVER from "./template/deliver.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
@@ -64,6 +65,7 @@ export const Default = {
   DEBATE: "debate",
   SELF_CRITIQUE: "self-critique",
   ATTACH: "attach",
+  PIPELINE: "pipeline",
   AUDIT_REPORT: "audit-report",
   DELIVER: "deliver",
 } as const
@@ -185,6 +187,14 @@ const layer = Layer.effect(
         template: PROMPT_ATTACH,
         subtask: true,
         hints: hints(PROMPT_ATTACH),
+      }
+      commands[Default.PIPELINE] = {
+        name: Default.PIPELINE,
+        description: "Run the complete Engineering OS pipeline (all 13 phases)",
+        source: "command",
+        template: PROMPT_PIPELINE,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
