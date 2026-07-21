@@ -1,0 +1,338 @@
+#!/bin/bash
+# Engineering OS — Project Launcher
+# No set -e: we handle errors gracefully
+
+OPENCODE_BIN="/usr/local/bin/opencode-engos"
+BUN="$HOME/.bun/bin/bun"
+DB="/root/.local/share/opencode/opencode.db"
+
+# ── Colors ──
+C_RESET='\033[0m'
+C_BOLD='\033[1m'
+C_DIM='\033[2m'
+C_BLACK='\033[30m'
+C_RED='\033[31m'
+C_GREEN='\033[32m'
+C_YELLOW='\033[33m'
+C_BLUE='\033[34m'
+C_MAGENTA='\033[35m'
+C_CYAN='\033[36m'
+C_WHITE='\033[37m'
+C_BG_BLUE='\033[44m'
+C_BG_GREEN='\033[42m'
+C_BG_CYAN='\033[46m'
+C_BG_DIM='\033[48;2;30;30;40m'
+C_BG_SEL='\033[48;2;50;55;70m'
+
+# ── Icons ──
+ICON_NODE="⬡"
+ICON_REACT="⚛"
+ICON_RUST="🦀"
+ICON_PYTHON="🐍"
+ICON_GO="🔷"
+ICON_GIT="⟳"
+ICON_DIR="▸"
+ICON_FILE="·"
+ICON_PROJ="📦"
+ICON_SESSION="💬"
+ICON_STAR="★"
+
+# ── Detect project type ──
+detect_icon() {
+  local dir="$1"
+  if [ -f "$dir/package.json" ]; then
+    grep -q '"next"' "$dir/package.json" 2>/dev/null && echo "$ICON_REACT Next.js" && return
+    grep -q '"react"' "$dir/package.json" 2>/dev/null && echo "$ICON_REACT React" && return
+    echo "$ICON_NODE Node.js"
+  elif [ -f "$dir/Cargo.toml" ]; then echo "$ICON_RUST Rust"
+  elif [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ]; then echo "$ICON_PYTHON Python"
+  elif [ -f "$dir/go.mod" ]; then echo "$ICON_GO Go"
+  else echo "$ICON_DIR Project"; fi
+}
+
+# ── Get git branch ──
+git_branch() {
+  git -C "$1" rev-parse --abbrev-ref HEAD 2>/dev/null || echo ""
+}
+
+# ── Get last modified time ──
+last_modified() {
+  local dir="$1"
+  if [ -d "$dir/.git" ]; then
+    git -C "$dir" log -1 --format="%ct" 2>/dev/null || echo "0"
+  else
+    echo "0"
+  fi
+}
+
+# ── Load sessions from DB ──
+load_sessions() {
+  if [ ! -f "$DB" ]; then
+    SESSION_ITEMS=()
+    SESSION_PATHS=()
+    return
+  fi
+  local raw
+  raw=$(sqlite3 "$DB" "SELECT title, directory, time_created FROM session WHERE directory != '' GROUP BY directory ORDER BY MAX(time_created) DESC LIMIT 20;" 2>/dev/null || true)
+  SESSION_ITEMS=()
+  SESSION_PATHS=()
+  while IFS='|' read -r title dir time; do
+    [ -z "$dir" ] && continue
+    # Deduplicate: keep only unique directories
+    local dup=0
+    for d in "${SESSION_PATHS[@]}"; do [ "$d" = "$dir" ] && { dup=1; break; } done
+    [ "$dup" -eq 1 ] && continue
+    SESSION_PATHS+=("$dir")
+    SESSION_ITEMS+=("${title:0:50}")  # truncate long titles
+  done <<< "$raw"
+}
+
+# ── Scan for projects ──
+scan_projects() {
+  local scan_base="$1"
+  local max_projects="${2:-15}"
+  PROJECT_NAMES=()
+  PROJECT_PATHS=()
+  PROJECT_TYPES=()
+  PROJECT_BRANCHES=()
+
+  # Quick scan: look for directories with .git, package.json, Cargo.toml
+  local queue=("$scan_base")
+  local found=0
+  while [ ${#queue[@]} -gt 0 ] && [ "$found" -lt "$max_projects" ]; do
+    local current="${queue[0]}"
+    queue=("${queue[@]:1}")
+    
+    # Check if current dir is a project
+    if [ -f "$current/package.json" ] || [ -f "$current/Cargo.toml" ] || [ -f "$current/go.mod" ] || [ -f "$current/.git/HEAD" ]; then
+      # Skip monorepo sub-packages (packages/, artifacts/, sdks/)
+      local parent
+      parent=$(dirname "$current")
+      if [ -f "$parent/package.json" ] && grep -q '"workspaces"' "$parent/package.json" 2>/dev/null; then
+        # Monorepo root found - skip sub-packages
+        :
+      elif [ -f "$parent/Cargo.toml" ] && grep -q '"workspace"' "$parent/Cargo.toml" 2>/dev/null; then
+        :
+      else
+        local name
+        name=$(basename "$current")
+        local type_info
+        type_info=$(detect_icon "$current")
+        local branch
+        branch=$(git_branch "$current")
+        PROJECT_NAMES+=("$name")
+        PROJECT_PATHS+=("$current")
+        PROJECT_TYPES+=("$type_info")
+        PROJECT_BRANCHES+=("$branch")
+        ((found++))
+        continue
+      fi
+    fi
+
+    # Recurse into subdirectories (max 2 levels)
+    local depth
+    depth=$(($(echo "$current" | tr -cd '/' | wc -c) - $(echo "$scan_base" | tr -cd '/' | wc -c)))
+    [ "$depth" -ge 2 ] && continue
+
+    for entry in "$current"/*/; do
+      [ -d "$entry" ] || continue
+      local base
+      base=$(basename "$entry")
+      [[ "$base" == .* ]] && continue        # skip hidden
+      [[ "$base" == "node_modules" ]] && continue
+      [[ "$base" == "packages" ]] && continue # skip monorepo packages dir
+      [[ "$base" == "artifacts" ]] && continue
+      queue+=("${entry%/}")
+    done
+  done
+}
+
+# ── Terminal size ──
+term_width() { tput cols 2>/dev/null || echo 80; }
+term_height() { tput lines 2>/dev/null || echo 24; }
+
+# ── Render ──
+render() {
+  local w h
+  w=$(term_width)
+  h=$(term_height)
+  local col_w=$(( (w - 6) / 2 ))
+  [ "$col_w" -lt 30 ] && col_w=30
+
+  # Header
+  echo ""
+  echo -e "  ${C_BOLD}${C_CYAN}╔══════════════════════════════════════════════════════════════════════════╗${C_RESET}"
+  echo -e "  ${C_BOLD}${C_CYAN}║${C_RESET}  ${C_BOLD}Engineering OS${C_RESET}  —  Project Launcher                              ${C_BOLD}${C_CYAN}║${C_RESET}"
+  echo -e "  ${C_BOLD}${C_CYAN}╚══════════════════════════════════════════════════════════════════════════╝${C_RESET}"
+  echo ""
+
+  # Recent sessions section
+  if [ ${#SESSION_PATHS[@]} -gt 0 ]; then
+    echo -e "  ${C_BOLD}${C_WHITE}Recent Sessions${C_RESET}"
+    echo -e "  ${C_DIM}──────────────────────────────────────────────────────────────${C_RESET}"
+    local max_show=$(( (h - 12) / 2 ))
+    [ "$max_show" -lt 4 ] && max_show=4
+    [ "$max_show" -gt ${#SESSION_PATHS[@]} ] && max_show=${#SESSION_PATHS[@]}
+    for i in $(seq 0 $((max_show - 1))); do
+      local idx=$((SELECTED == i ? 1 : 0))
+      local prefix=$([ "$SELECTED" -eq "$i" ] && echo " ${C_CYAN}▶${C_RESET}" || echo "  ")
+      local short_path="${SESSION_PATHS[$i]}"
+      local base_name
+      base_name=$(basename "${SESSION_PATHS[$i]}")
+      echo -e "  ${prefix} ${C_DIM}${ICON_SESSION}${C_RESET} ${C_BOLD}${SESSION_ITEMS[$i]}${C_RESET}"
+      echo -e "      ${C_DIM}${short_path}${C_RESET}"
+    done
+    echo ""
+  fi
+
+  # Projects section
+  local offset=${#SESSION_PATHS[@]}
+  [ "${#SESSION_PATHS[@]}" -gt 0 ] && offset=$((offset + 1)) # account for blank line
+
+  echo -e "  ${C_BOLD}${C_WHITE}Projects${C_RESET}"
+  echo -e "  ${C_DIM}──────────────────────────────────────────────────────────────${C_RESET}"
+
+  local max_rows=$(( (h - 18) / 2 ))
+  [ "$max_rows" -lt 6 ] && max_rows=6
+  local show_count=${#PROJECT_NAMES[@]}
+  [ "$show_count" -gt "$max_rows" ] && show_count=$max_rows
+
+  for i in $(seq 0 $((show_count - 1))); do
+    local abs_idx=$((offset + i))
+    local prefix=$([ "$SELECTED" -eq "$abs_idx" ] && echo " ${C_CYAN}▶${C_RESET}" || echo "  ")
+    local type_info="${PROJECT_TYPES[$i]}"
+    local branch="${PROJECT_BRANCHES[$i]}"
+    local branch_info=""
+    [ -n "$branch" ] && branch_info=" ${C_DIM}(${C_RESET}${branch}${C_DIM})${C_RESET}"
+    
+    if [ "$SELECTED" -eq "$abs_idx" ]; then
+      echo -e "  ${prefix} ${type_info%% *} ${C_BOLD}${PROJECT_NAMES[$i]}${C_RESET}${branch_info}"
+      echo -e "     ${C_DIM}${C_CYAN}${PROJECT_PATHS[$i]}${C_RESET}"
+    else
+      echo -e "  ${prefix} ${type_info%% *} ${PROJECT_NAMES[$i]}${branch_info}"
+    fi
+  done
+
+  echo ""
+
+  # Actions
+  local actions_offset=$((offset + show_count))
+  
+  # Browse custom path
+  local a0=$((actions_offset))
+  echo -e "  $([ "$SELECTED" -eq "$a0" ] && echo " ${C_CYAN}▶${C_RESET}" || echo "  ") ${C_DIM}📂${C_RESET} Browse custom path..."
+
+  # Current directory
+  local a1=$((a0 + 1))
+  echo -e "  $([ "$SELECTED" -eq "$a1" ] && echo " ${C_CYAN}▶${C_RESET}" || echo "  ") ${C_DIM}📁${C_RESET} Current directory ($(basename "$(pwd)"))"
+
+  # Exit
+  local a2=$((a1 + 1))
+  echo -e "  $([ "$SELECTED" -eq "$a2" ] && echo " ${C_CYAN}▶${C_RESET}" || echo "  ") ${C_DIM}✕${C_RESET} Exit"
+  echo ""
+
+  # Footer
+  echo -e "  ${C_DIM}↑↓ navigate  ·  Enter select  ·  Esc back  ·  Ctrl+C quit${C_RESET}"
+  echo ""
+}
+
+# ── Main ──
+load_sessions
+scan_projects "/root" 15
+
+# Add recent session directories as quick-access projects
+for dir in "${SESSION_PATHS[@]}"; do
+  [ -d "$dir" ] || continue
+  # Skip if already in project list
+  skip=0
+  for p in "${PROJECT_PATHS[@]}"; do [ "$p" = "$dir" ] && { skip=1; break; } done
+  [ "$skip" -eq 1 ] && continue
+  name=$(basename "$dir")
+  type_info=$(detect_icon "$dir")
+  branch=$(git_branch "$dir")
+  PROJECT_NAMES+=("$name")
+  PROJECT_PATHS+=("$dir")
+  PROJECT_TYPES+=("$type_info")
+  PROJECT_BRANCHES+=("$branch")
+done
+
+# Debug check
+if [ ${#PROJECT_PATHS[@]} -eq 0 ]; then
+  echo "No projects found. Check scan_projects."
+fi
+
+# Total items
+TOTAL_ITEMS=${#SESSION_PATHS[@]}
+# Add projects
+TOTAL_ITEMS=$((TOTAL_ITEMS + ${#PROJECT_NAMES[@]}))
+# Add browse + current + exit
+SESSION_COUNT=${#SESSION_PATHS[@]}
+PROJECT_COUNT=${#PROJECT_NAMES[@]}
+ACTIONS_START=$((SESSION_COUNT + PROJECT_COUNT))
+TOTAL_ITEMS=$((ACTIONS_START + 3))  # browse + current + exit
+
+SELECTED=0
+
+# Find first non-empty section
+if [ "$SESSION_COUNT" -eq 0 ] && [ "$PROJECT_COUNT" -gt 0 ]; then
+  SELECTED=0
+fi
+
+clear
+render
+
+while true; do
+  IFS= read -rsn1 key
+  
+  if [ -z "$key" ]; then
+    # Enter
+    if [ "$SELECTED" -lt "$SESSION_COUNT" ]; then
+      dir="${SESSION_PATHS[$SELECTED]}"
+      clear
+      echo -e "\n  ${C_GREEN}Opening: ${dir}${C_RESET}\n"
+      exec $OPENCODE_BIN "$dir"
+    elif [ "$SELECTED" -lt "$((SESSION_COUNT + PROJECT_COUNT))" ]; then
+      local_idx=$((SELECTED - SESSION_COUNT))
+      dir="${PROJECT_PATHS[$local_idx]}"
+      clear
+      echo -e "\n  ${C_GREEN}Opening: ${dir}${C_RESET}\n"
+      exec $OPENCODE_BIN "$dir"
+    elif [ "$SELECTED" -eq "$ACTIONS_START" ]; then
+      # Browse custom path
+      clear
+      echo -e "\n  ${C_CYAN}Enter project path:${C_RESET} "
+      IFS= read -r custom_path
+      custom_path="${custom_path/#\~/$HOME}"
+      if [ -d "$custom_path" ]; then
+        echo -e "\n  ${C_GREEN}Opening: ${custom_path}${C_RESET}\n"
+        exec $OPENCODE_BIN "$custom_path"
+      else
+        echo -e "\n  ${C_RED}Invalid path: ${custom_path}${C_RESET}\n"
+        sleep 2
+      fi
+    elif [ "$SELECTED" -eq "$((ACTIONS_START + 1))" ]; then
+      # Current directory
+      clear
+      echo -e "\n  ${C_GREEN}Opening: $(pwd)${C_RESET}\n"
+      exec $OPENCODE_BIN "$(pwd)"
+    elif [ "$SELECTED" -eq "$((ACTIONS_START + 2))" ]; then
+      clear
+      exit 0
+    fi
+  elif [ "$key" = $'\e' ]; then
+    read -rsn2 key2
+    case "$key2" in
+      "[A") # Up
+        [ "$SELECTED" -gt 0 ] && SELECTED=$((SELECTED - 1))
+        ;;
+      "[B") # Down
+        [ "$SELECTED" -lt $((TOTAL_ITEMS - 1)) ] && SELECTED=$((SELECTED + 1))
+        ;;
+    esac
+  elif [ "$key" = $'\n' ] || [ "$key" = $'\r' ]; then
+    continue  # handled above by empty key
+  fi
+  
+  clear
+  render
+done
