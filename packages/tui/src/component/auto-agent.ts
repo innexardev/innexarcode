@@ -163,7 +163,12 @@ export function detectPipelineCommand(text: string): string | undefined {
     "plan-review": "planner", debate: "auto", "self-critique": "auditor",
     "audit-report": "auditor", deliver: "release-manager",
     explore: "auto", review: "code-reviewer", gate: "auto",
-    attach: "auto", pipeline: "auto",
+    attach: "auto", pipeline: "auto", mission: "auto",
+    "pipeline-bug": "auto", "pipeline-review": "auto",
+    "pipeline-refactor": "auto", "pipeline-upgrade": "auto",
+    "pipeline-performance": "auto", "pipeline-security": "auto",
+    "pipeline-deploy": "auto", "pipeline-testing": "auto",
+    "pipeline-docs": "auto",
   }
   return cmdToAgent[cmd]
 }

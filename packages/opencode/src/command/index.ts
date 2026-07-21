@@ -18,6 +18,16 @@ import PROMPT_DEBATE from "./template/debate.txt"
 import PROMPT_SELF_CRITIQUE from "./template/self-critique.txt"
 import PROMPT_ATTACH from "./template/attach.txt"
 import PROMPT_PIPELINE from "./template/pipeline.txt"
+import PROMPT_MISSION from "./template/mission.txt"
+import PROMPT_PIPELINE_BUG from "./template/pipeline-bug.txt"
+import PROMPT_PIPELINE_REVIEW from "./template/pipeline-review.txt"
+import PROMPT_PIPELINE_REFACTOR from "./template/pipeline-refactor.txt"
+import PROMPT_PIPELINE_UPGRADE from "./template/pipeline-upgrade.txt"
+import PROMPT_PIPELINE_PERFORMANCE from "./template/pipeline-performance.txt"
+import PROMPT_PIPELINE_SECURITY from "./template/pipeline-security.txt"
+import PROMPT_PIPELINE_DEPLOY from "./template/pipeline-deploy.txt"
+import PROMPT_PIPELINE_TESTING from "./template/pipeline-testing.txt"
+import PROMPT_PIPELINE_DOCS from "./template/pipeline-docs.txt"
 import PROMPT_AUDIT_REPORT from "./template/audit-report.txt"
 import PROMPT_DELIVER from "./template/deliver.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
@@ -66,6 +76,16 @@ export const Default = {
   SELF_CRITIQUE: "self-critique",
   ATTACH: "attach",
   PIPELINE: "pipeline",
+  MISSION: "mission",
+  PIPELINE_BUG: "pipeline-bug",
+  PIPELINE_REVIEW: "pipeline-review",
+  PIPELINE_REFACTOR: "pipeline-refactor",
+  PIPELINE_UPGRADE: "pipeline-upgrade",
+  PIPELINE_PERFORMANCE: "pipeline-performance",
+  PIPELINE_SECURITY: "pipeline-security",
+  PIPELINE_DEPLOY: "pipeline-deploy",
+  PIPELINE_TESTING: "pipeline-testing",
+  PIPELINE_DOCS: "pipeline-docs",
   AUDIT_REPORT: "audit-report",
   DELIVER: "deliver",
 } as const
@@ -195,6 +215,86 @@ const layer = Layer.effect(
         template: PROMPT_PIPELINE,
         subtask: true,
         hints: hints(PROMPT_PIPELINE),
+      }
+      commands[Default.MISSION] = {
+        name: Default.MISSION,
+        description: "Detect mission type and run the appropriate pipeline",
+        source: "command",
+        template: PROMPT_MISSION,
+        subtask: true,
+        hints: hints(PROMPT_MISSION),
+      }
+      commands[Default.PIPELINE_BUG] = {
+        name: Default.PIPELINE_BUG,
+        description: "Bugfix pipeline: reproduce, analyze, fix, test, deliver",
+        source: "command",
+        template: PROMPT_PIPELINE_BUG,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_BUG),
+      }
+      commands[Default.PIPELINE_REVIEW] = {
+        name: Default.PIPELINE_REVIEW,
+        description: "Code review pipeline: analyze architecture, backend, frontend, security, perf",
+        source: "command",
+        template: PROMPT_PIPELINE_REVIEW,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_REVIEW),
+      }
+      commands[Default.PIPELINE_REFACTOR] = {
+        name: Default.PIPELINE_REFACTOR,
+        description: "Refactoring pipeline: map deps, detect smells, plan, execute, benchmark",
+        source: "command",
+        template: PROMPT_PIPELINE_REFACTOR,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_REFACTOR),
+      }
+      commands[Default.PIPELINE_UPGRADE] = {
+        name: Default.PIPELINE_UPGRADE,
+        description: "Upgrade pipeline: research breaking changes, backup, upgrade, test",
+        source: "command",
+        template: PROMPT_PIPELINE_UPGRADE,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_UPGRADE),
+      }
+      commands[Default.PIPELINE_PERFORMANCE] = {
+        name: Default.PIPELINE_PERFORMANCE,
+        description: "Performance pipeline: collect metrics, optimize, benchmark before/after",
+        source: "command",
+        template: PROMPT_PIPELINE_PERFORMANCE,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_PERFORMANCE),
+      }
+      commands[Default.PIPELINE_SECURITY] = {
+        name: Default.PIPELINE_SECURITY,
+        description: "Security audit pipeline: OWASP, deps, secrets, JWT, CORS, XSS, CSRF",
+        source: "command",
+        template: PROMPT_PIPELINE_SECURITY,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_SECURITY),
+      }
+      commands[Default.PIPELINE_DEPLOY] = {
+        name: Default.PIPELINE_DEPLOY,
+        description: "Deploy pipeline: verify build, tests, security, docker, release",
+        source: "command",
+        template: PROMPT_PIPELINE_DEPLOY,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_DEPLOY),
+      }
+      commands[Default.PIPELINE_TESTING] = {
+        name: Default.PIPELINE_TESTING,
+        description: "Testing pipeline: analyze coverage, create tests, review, update CI",
+        source: "command",
+        template: PROMPT_PIPELINE_TESTING,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_TESTING),
+      }
+      commands[Default.PIPELINE_DOCS] = {
+        name: Default.PIPELINE_DOCS,
+        description: "Documentation pipeline: README, API docs, diagrams, ADRs, changelog",
+        source: "command",
+        template: PROMPT_PIPELINE_DOCS,
+        subtask: true,
+        hints: hints(PROMPT_PIPELINE_DOCS),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

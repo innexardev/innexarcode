@@ -1,0 +1,16 @@
+# Testing Pipeline
+
+Create and improve test coverage.
+
+$ARGUMENTS
+
+Phases:
+1. Analyze coverage → task to qa agent
+2. Identify gaps → task to qa agent
+3. Create test plan → task to planner agent
+4. Create tests → task to general agent
+5. Run tests → task to qa agent
+6. Review tests → task to code-reviewer agent
+7. Update CI → task to general agent
+
+For each phase: call pipeline-advance before and after.

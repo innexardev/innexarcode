@@ -23,6 +23,7 @@
     "./context-engine": "./src/context-engine/index.ts",
     "./pipeline": "./src/pipeline/index.ts",
     "./pipeline/state": "./src/pipeline/state.ts",
+    "./mission": "./src/mission/index.ts",
     "./*": "./src/*.ts"
   },
   "imports": {

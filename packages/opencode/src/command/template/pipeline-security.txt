@@ -1,0 +1,22 @@
+# Security Audit Pipeline
+
+Complete security audit with OWASP coverage.
+
+$ARGUMENTS
+
+Phases:
+1. OWASP scan → task to security agent
+2. Check dependencies → task to security agent
+3. Check secrets → task to security agent
+4. Check JWT/Auth → task to security agent
+5. Check CORS → task to security agent
+6. Check headers → task to security agent
+7. Check SQL Injection → task to security agent
+8. Check XSS/CSRF → task to security agent
+9. Check rate limiting → task to security agent
+10. Check RBAC → task to security agent
+11. Generate security report → task to documentation agent
+12. Apply fixes → task to general agent
+13. Review fixes → task to code-reviewer agent
+
+For each phase: call pipeline-advance before and after.
