@@ -6,6 +6,7 @@ import { useTheme } from "../context/theme"
 import { useTuiConfig } from "../config"
 import { usePluginRuntime } from "../plugin/runtime"
 import { useSDK } from "../context/sdk"
+import { useRoute } from "../context/route"
 import { InstallationChannel, InstallationVersion } from "@opencode-ai/core/installation/version"
 import { getScrollAcceleration } from "../util/scroll"
 import { WorkspaceLabel } from "../component/workspace-label"
@@ -21,6 +22,7 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
   const tuiConfig = useTuiConfig()
   const paths = useTuiPaths()
   const sdk = useSDK()
+  const route = useRoute()
   const session = createMemo(() => sync.session.get(props.sessionID))
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
   const workspace = () => {
@@ -65,6 +67,18 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
       }
     } catch {}
     setFilesLoading(false)
+  }
+
+  // Handle file selection: attach to chat
+  function handleFileSelect(path: string) {
+    const dir = project.instance.directory()
+    if (!dir) return
+    const fullPath = path.startsWith("/") ? path : `${dir}/${path}`
+    route.navigate({
+      type: "session",
+      sessionID: props.sessionID,
+      prompt: { input: `/attach ${fullPath}`, parts: [] },
+    })
   }
 
   onMount(loadFiles)
@@ -148,7 +162,7 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
                   <text fg={theme.textMuted}>Scanning project files...</text>
                 </Show>
                 <Show when={!filesLoading() && fileTree().length > 0}>
-                  <FileExplorer files={fileTree()} width={props.width - 4} />
+                  <FileExplorer files={fileTree()} width={props.width - 4} onFileSelect={handleFileSelect} />
                 </Show>
                 <Show when={!filesLoading() && fileTree().length === 0}>
                   <text fg={theme.textMuted}>No files found</text>
