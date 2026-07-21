@@ -7,15 +7,42 @@
 type IntentGroup = { patterns: RegExp[]; agent: string; priority: number }
 
 const INTENT_MAP: IntentGroup[] = [
-  // ── Project tasks → auto → executa pipeline ──
+  // ── Full pipeline tasks → auto:pipeline → executa 13 fases ──
   { patterns: [
+    // Criar/construir projetos
     /cri[ra].*projet/i, /nov[oa].*projet/i, /implement.*sistem/i,
     /cri[ra].*sistem/i, /constru[ií]r/i, /desenvolve.*projet/i,
     /cri[ra].*aplicativ/i, /cri[ra].*app\b/i, /cri[ra].*api\b/i,
     /cri[ra].*serviç/i, /cri[ra].*m[óo]dul/i, /cri[ra].*funcionalidad/i,
     /fazer.*projet/i, /cri[ra].*do.?zero/i, /projet.*novo/i,
+    /iniciar.*projet/i, /começ[ra].*projet/i, /montar.*projet/i,
+    /gerar.*projet/i, /scaffold/i, /boilerplate/i,
+    /cri[ra].*startup/i, /cri[ra].*saas/i, /cri[ra].*plataform/i,
+    // Revisar/auditar projetos
     /review.*projet/i, /revis[ãa]o.*projet/i, /auditar.*projet/i,
     /analisa.*projet/i, /analis.*complet/i,
+    /revis[ãa]o.*complet/i, /audit.*complet/i,
+    /check.?up.*projet/i, /diagnostic.*projet/i,
+    // Implementar features
+    /implement.*feature/i, /cri[ra].*feature/i, /nova.*feature/i,
+    /adicionar.*funcionalidad/i, /adicionar.*m[óo]dul/i,
+    /adicionar.*api\b/i, /adicionar.*rota/i, /adicionar.*endpoint/i,
+    /adicionar.*compon/i, /adicionar.*tela/i, /adicionar.*p[áa]gin/i,
+    // Integrações
+    /integr[ra].*api/i, /integr[ra].*serviç/i, /conect[ra].*api/i,
+    /conect[ra].*banco/i, /integr[ra].*banco/i,
+    /cri[ra].*webhook/i, /cri[ra].*integration/i,
+    // Setup/configuração
+    /configur[ra].*projet/i, /setup.*projet/i, /inicializ[ra].*projet/i,
+    /configur[ra].*api/i, /configur[ra].*banco/i,
+    /configur[ra].*docker/i, /configur[ra].*ci/i,
+    // Full review/audit
+    /revis[ãa]o.*geral/i, /audit.*geral/i, /revis[ãa]o.*técnic/i,
+    /an[áa]lise.*complet/i, /levantament.*requisit/i,
+    // Deploy/release
+    /prepar[ra].*deploy/i, /prepar[ra].*release/i,
+    /configur[ra].*deploy/i, /cri[ra].*pipeline.*ci/i,
+    /cri[ra].*workflow/i, /automatiz[ra].*deploy/i,
   ], agent: "auto:pipeline", priority: 5 },
 
   // ── QA / Testes ──
