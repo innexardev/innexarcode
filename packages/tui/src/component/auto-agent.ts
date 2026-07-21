@@ -123,7 +123,7 @@ const INTENT_MAP: IntentGroup[] = [
 
   // ── Pipeline commands ──
   { patterns: [
-    /^\/discover/i, /^\/research/i, /^\/debate/i, /^\/explore/i,
+    /^\/pipeline\b/i, /^\/discover/i, /^\/research/i, /^\/debate/i, /^\/explore/i,
     /^\/gate\b/i,
   ], agent: "auto", priority: 4 },
   { patterns: [/^\/plan-create\b/i, /^\/plan-review\b/i], agent: "planner", priority: 4 },
@@ -164,7 +164,7 @@ export function detectPipelineCommand(text: string): string | undefined {
     "plan-review": "planner", debate: "auto", "self-critique": "auditor",
     "audit-report": "auditor", deliver: "release-manager",
     explore: "auto", review: "code-reviewer", gate: "auto",
-    attach: "auto",
+    attach: "auto", pipeline: "auto",
   }
   return cmdToAgent[cmd]
 }

@@ -1,81 +1,25 @@
-Execute the COMPLETE Engineering OS pipeline (all 13 phases).
+Execute ALL 13 pipeline phases in order. NEVER skip phases.
 
-$ARGUMENTS
+For EACH phase:
+1. Call `pipeline-advance` with { phase: PHASE_NAME, status: "start" }
+2. Delegate the work using `task` tool to the specified sub-agent
+3. Call `pipeline-advance` with { phase: PHASE_NAME, status: "complete" }
+4. Proceed immediately to next phase
 
-## RULE: Execute ALL phases in order. NEVER skip.
+Phases:
+1. discovery  → task to explore agent
+2. research   → task to general agent
+3. planning   → task to planner agent
+4. architecture → task to architect agent
+5. debate     → task to general agent
+6. implementation → task to general agent
+7. review     → task to code-reviewer agent
+8. qa         → task to qa agent
+9. security   → task to security agent
+10. self-critique → task to auditor agent
+11. question  → task to questionador agent
+12. audit     → task to auditor agent
+13. delivery  → task to release-manager agent
 
-For each phase, call `pipeline-advance` with status="start".
-Delegate the work via `task` tool to the right sub-agent.
-When done, call `pipeline-advance` with status="complete".
-Then proceed to the next phase.
-
-## Phase 1: DISCOVERY
-pipeline-advance { phase: "discovery", status: "start" }
-Delegate to: explore — scan project
-pipeline-advance { phase: "discovery", status: "complete" }
-
-## Phase 2: RESEARCH
-pipeline-advance { phase: "research", status: "start" }
-Delegate to: general — research APIs, docs
-pipeline-advance { phase: "research", status: "complete" }
-
-## Phase 3: PLANNING
-pipeline-advance { phase: "planning", status: "start" }
-Delegate to: planner — create plan
-pipeline-advance { phase: "planning", status: "complete" }
-
-## Phase 4: ARCHITECTURE
-pipeline-advance { phase: "architecture", status: "start" }
-Delegate to: architect — ADRs, schema
-pipeline-advance { phase: "architecture", status: "complete" }
-
-## Phase 5: DEBATE
-pipeline-advance { phase: "debate", status: "start" }
-Delegate to: general — multi-agent review
-pipeline-advance { phase: "debate", status: "complete" }
-
-## Phase 6: IMPLEMENTATION
-pipeline-advance { phase: "implementation", status: "start" }
-Delegate to: general — implement
-pipeline-advance { phase: "implementation", status: "complete" }
-
-## Phase 7: REVIEW
-pipeline-advance { phase: "review", status: "start" }
-Delegate to: code-reviewer — review code
-pipeline-advance { phase: "review", status: "complete" }
-
-## Phase 8: QA
-pipeline-advance { phase: "qa", status: "start" }
-Delegate to: qa — tests
-pipeline-advance { phase: "qa", status: "complete" }
-
-## Phase 9: SECURITY
-pipeline-advance { phase: "security", status: "start" }
-Delegate to: security — OWASP
-pipeline-advance { phase: "security", status: "complete" }
-
-## Phase 10: SELF-CRITIQUE
-pipeline-advance { phase: "self-critique", status: "start" }
-Delegate to: auditor — find issues
-pipeline-advance { phase: "self-critique", status: "complete" }
-
-## Phase 11: QUESTION
-pipeline-advance { phase: "question", status: "start" }
-Delegate to: questionador — what's missing?
-pipeline-advance { phase: "question", status: "complete" }
-
-## Phase 12: AUDIT
-pipeline-advance { phase: "audit", status: "start" }
-Delegate to: auditor — comprehensive report
-pipeline-advance { phase: "audit", status: "complete" }
-
-## Phase 13: DELIVERY
-pipeline-advance { phase: "delivery", status: "start" }
-Delegate to: release-manager — final checklist
-pipeline-advance { phase: "delivery", status: "complete" }
-
-## Rules
-- Always call pipeline-advance before and after each phase
-- If a phase fails, call pipeline-advance with status="fail" and retry
-- After completion, provide a summary of all phases
-- NEVER skip phases
+IMPORTANT: Complete all phases. After each phase, announce it.
+If a phase fails, fix and retry. Do not skip.
