@@ -980,7 +980,9 @@ export function Prompt(props: PromptProps) {
     if (agent.name !== "auto") {
       const { detectAgent, detectPipelineCommand } = await import("../auto-agent")
       const pipCmd = detectPipelineCommand(trimmed)
-      const recommended = pipCmd ?? detectAgent(trimmed)
+      let recommended = pipCmd ?? detectAgent(trimmed)
+      // "auto:pipeline" means keep auto agent but use pipeline
+      if (recommended === "auto:pipeline") recommended = "auto"
       if (recommended && recommended !== agent.name) {
         local.agent.set(recommended)
       }
@@ -990,7 +992,9 @@ export function Prompt(props: PromptProps) {
     if (agent.name === "auto") {
       const { detectAgent, detectPipelineCommand } = await import("../auto-agent")
       const pipCmd = detectPipelineCommand(trimmed)
-      const recommended = pipCmd ?? detectAgent(trimmed)
+      let recommended = pipCmd ?? detectAgent(trimmed)
+      // "auto:pipeline" means stay on auto — pipeline is handled by input enrichment
+      if (recommended === "auto:pipeline") recommended = "auto"
       if (recommended && recommended !== "auto") {
         local.agent.set(recommended)
       }
