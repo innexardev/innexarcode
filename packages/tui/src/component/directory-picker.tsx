@@ -6,13 +6,14 @@ import { useSDK } from "../context/sdk"
 import { useSync } from "../context/sync"
 import { useProject } from "../context/project"
 
-const HOME_DIR = "/root"
-
-interface DirEntry {
+interface ProjectEntry {
   name: string
   path: string
-  isDir: boolean
-  isProject?: boolean
+  sessions: number
+  lastUsed: number
+  type: string
+  icon: string
+  branch: string
 }
 
 export function DirectoryPicker(props: { width: number }) {
@@ -22,93 +23,55 @@ export function DirectoryPicker(props: { width: number }) {
   const sync = useSync()
   const project = useProject()
 
-  const startDir = createMemo(() => {
-    const dir = project.instance.directory()
-    return dir || "/root"
-  })
-
-  const [currentPath, setCurrentPath] = createSignal("/root")
-  const [entries, setEntries] = createSignal<DirEntry[]>([])
-  const [history, setHistory] = createSignal<string[]>(["/root"])
+  const [currentPath, setCurrentPath] = createSignal("")
+  const [entries, setEntries] = createSignal<{ name: string; path: string; isDir: boolean }[]>([])
   const [loading, setLoading] = createSignal(false)
-  const [error, setError] = createSignal<string | undefined>()
+  const [mode, setMode] = createSignal<"projects" | "browse">("projects")
+  const [history, setHistory] = createSignal<string[]>([])
 
-  async function scanDir(dir: string) {
-    setLoading(true)
-    setError(undefined)
-    try {
-      const items: DirEntry[] = []
+  // Build project list from sessions
+  const projects = createMemo<ProjectEntry[]>(() => {
+    const sessions = sync.data.session
+    const dirMap = new Map<string, { count: number; last: number; title: string }>()
 
-      // Parent directory entry
-      if (dir !== "/") {
-        const parent = dir.substring(0, dir.lastIndexOf("/")) || "/"
-        items.push({ name: ".. (up)", path: parent, isDir: true })
-      }
-
-      // Use SDK file.list to get directory contents
-      const response = await sdk.client.file.list({
-        path: dir,
-        throwOnError: false,
-      } as any)
-
-      if (response?.data) {
-        for (const entry of response.data) {
-          items.push({
-            name: entry.name,
-            path: entry.absolute || entry.path,
-            isDir: entry.type === "directory",
-            isProject: entry.type === "directory" && entry.name !== ".." && (
-              entry.name === "node_modules" ? false :
-              entry.name.startsWith(".") ? false : true
-            ),
-          })
+    for (const s of sessions) {
+      // Try to get directory from session - it might be in different fields
+      const dir = (s as any).directory || (s as any).projectID || ""
+      if (!dir || dir === "/root") continue
+      const existing = dirMap.get(dir)
+      if (existing) {
+        existing.count++
+        if (s.time.updated > existing.last) {
+          existing.last = s.time.updated
+          existing.title = s.title
         }
+      } else {
+        dirMap.set(dir, { count: 1, last: s.time.updated, title: s.title })
       }
+    }
 
-      // Sort: directories first, then files, alphabetically
-      items.sort((a, b) => {
-        if (a.isDir && !b.isDir) return -1
-        if (!a.isDir && b.isDir) return 1
-        return a.name.localeCompare(b.name)
+    // Convert to array and sort by last used
+    const result: ProjectEntry[] = []
+    for (const [path, info] of dirMap) {
+      const name = path.split("/").pop() || path
+      const isNode = info.title.includes(".ts") || info.title.includes("npm") || info.title.includes("node")
+      const isReact = info.title.includes("react") || info.title.includes("frontend")
+      const isPython = info.title.includes("python") || info.title.includes("flask") || info.title.includes("django")
+
+      result.push({
+        name,
+        path,
+        sessions: info.count,
+        lastUsed: info.last,
+        type: isReact ? "React" : isNode ? "Node.js" : isPython ? "Python" : "Project",
+        icon: isReact ? "\u269B" : isNode ? "\u2B21" : isPython ? "\u{1F40D}" : "\u{1F4C1}",
+        branch: "",
       })
-
-      // Detect project directories (has package.json)
-      for (const item of items) {
-        if (item.isDir && item.name !== ".. (up)" && !item.name.startsWith(".") && item.name !== "node_modules") {
-          try {
-            const pkgResponse = await sdk.client.file.read({
-              path: item.path + "/package.json",
-              throwOnError: false,
-            } as any)
-            item.isProject = pkgResponse?.data?.type === "text"
-          } catch {
-            item.isProject = false
-          }
-        }
-      }
-
-      setEntries(items)
-    } catch (err) {
-      setError(String(err))
-      setEntries([])
     }
-    setLoading(false)
-  }
 
-  async function navigateTo(path: string) {
-    setHistory([...history(), path])
-    setCurrentPath(path)
-    await scanDir(path)
-  }
-
-  function goBack() {
-    if (history().length > 1) {
-      const newHistory = history().slice(0, -1)
-      setHistory(newHistory)
-      setCurrentPath(newHistory[newHistory.length - 1])
-      scanDir(newHistory[newHistory.length - 1])
-    }
-  }
+    result.sort((a, b) => b.lastUsed - a.lastUsed)
+    return result.slice(0, 15)
+  })
 
   function openProject(path: string) {
     route.navigate({
@@ -118,110 +81,154 @@ export function DirectoryPicker(props: { width: number }) {
     })
   }
 
+  async function scanDir(dir: string) {
+    setLoading(true)
+    try {
+      const resp = await sdk.client.file.list({ path: dir, throwOnError: false } as any)
+      const items: { name: string; path: string; isDir: boolean }[] = []
+
+      if (dir !== "/") {
+        items.push({ name: "..", path: dir.substring(0, dir.lastIndexOf("/")) || "/", isDir: true })
+      }
+
+      if (resp?.data) {
+        for (const e of resp.data) {
+          items.push({ name: e.name, path: e.absolute || e.path, isDir: e.type === "directory" })
+        }
+      }
+
+      items.sort((a, b) => {
+        if (a.isDir && !b.isDir) return -1
+        if (!a.isDir && b.isDir) return 1
+        return a.name.localeCompare(b.name)
+      })
+
+      setEntries(items)
+    } catch {}
+    setLoading(false)
+  }
+
+  function navigateTo(path: string) {
+    setHistory([...history(), path])
+    setCurrentPath(path)
+    scanDir(path)
+  }
+
   onMount(() => {
-    const dir = startDir()
-    setCurrentPath(dir)
-    setHistory([dir])
-    scanDir(dir)
+    // Start in projects mode
+    setMode("projects")
   })
 
-  // Keyboard: backspace goes up
-  function handleKey(e: KeyboardEvent) {
-    if (e.key === "Backspace" || e.key === "Escape") {
-      goBack()
-    }
+  const formatTime = (ts: number) => {
+    const d = new Date(ts)
+    const now = new Date()
+    const diff = now.getTime() - d.getTime()
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`
   }
 
   return (
-    <box flexDirection="column" gap={1} paddingLeft={1} paddingRight={1}>
-      <text fg={theme.text}>
-        <b>Projects</b>
-      </text>
+    <box flexDirection="column" gap={1} paddingLeft={2} paddingRight={2} height="100%">
+      {/* Header */}
+      <text fg={theme.primary}><b>Engineering OS</b></text>
+      <text fg={theme.textMuted}>Project Launcher</text>
+      <text fg={theme.textMuted}>{"\u2500".repeat(Math.max(10, props.width - 4))}</text>
 
-      {/* Current path with back button */}
-      <box flexDirection="row" gap={1}>
-        <Show when={history().length > 1}>
-          <text fg={theme.textMuted} onMouseUp={goBack}>{"<"}</text>
-        </Show>
-        <text fg={theme.textMuted} wrapMode="none" maxWidth={props.width - 4}>
-          {currentPath()}
-        </text>
+      {/* Mode toggle */}
+      <box flexDirection="row" gap={2}>
+        <box onMouseUp={() => setMode("projects")}>
+          <text fg={mode() === "projects" ? theme.primary : theme.textMuted}>
+            {mode() === "projects" ? "\u25C9" : "\u25CB"} Projects
+          </text>
+        </box>
+        <box onMouseUp={() => setMode("browse")}>
+          <text fg={mode() === "browse" ? theme.primary : theme.textMuted}>
+            {mode() === "browse" ? "\u25C9" : "\u25CB"} Browse
+          </text>
+        </box>
       </box>
 
-      {/* Recent sessions */}
-      <Show when={sync.data.session.length > 0}>
-        <text fg={theme.textMuted}>Recent</text>
-        <For each={sync.data.session.filter((s) => s.parentID === undefined).slice(0, 3)}>
-          {(session) => (
-            <box
-              flexDirection="row" gap={1}
-              onMouseUp={() => route.navigate({ type: "session", sessionID: session.id })}
-            >
-              <text fg={theme.secondary}>📁</text>
-              <text fg={theme.text} wrapMode="none" maxWidth={props.width - 6}>
-                {session.title}
-              </text>
-            </box>
-          )}
-        </For>
-      </Show>
-
-      {/* Browse */}
-      <text fg={theme.textMuted}>Browse</text>
-
-      {/* Loading indicator */}
-      <Show when={loading()}>
-        <text fg={theme.textMuted}>Scanning...</text>
-      </Show>
-
-      {/* Error state */}
-      <Show when={error()}>
-        <text fg={theme.error}>{error()}</text>
-      </Show>
-
-      {/* Directory entries */}
-      <Show when={!loading() && entries().length > 0}>
-        <scrollbox flexGrow={1} paddingRight={1}>
-          <For each={entries()}>
-            {(entry) => (
+      {/* Projects mode */}
+      <Show when={mode() === "projects"}>
+        <Show when={projects().length === 0}>
+          <text fg={theme.textMuted}>No recent projects</text>
+          <box onMouseUp={() => setMode("browse")}>
+            <text fg={theme.secondary}>Browse filesystem →</text>
+          </box>
+        </Show>
+        <scrollbox flexGrow={1}>
+          <For each={projects()}>
+            {(proj) => (
               <box
                 flexDirection="row" gap={1}
-                onMouseUp={() => {
-                  if (entry.isDir) navigateTo(entry.path)
-                  else openProject(entry.path)
-                }}
+                onMouseUp={() => openProject(proj.path)}
               >
-                <text fg={entry.isProject ? theme.success : entry.isDir ? theme.primary : theme.textMuted}>
-                  {entry.isProject ? "📦" : entry.isDir ? "📁" : "📄"}
-                </text>
-                <text
-                  fg={entry.isProject ? theme.success : theme.text}
-                  wrapMode="none"
-                  maxWidth={props.width - 6}
-                >
-                  {entry.name}
-                </text>
+                <text fg={theme.primary}>{proj.icon}</text>
+                <box flexDirection="column" gap={0}>
+                  <text fg={theme.text} wrapMode="none" maxWidth={props.width - 8}>
+                    {proj.name}
+                  </text>
+                  <text fg={theme.textMuted} wrapMode="none" maxWidth={props.width - 8}>
+                    {proj.path} {proj.branch ? `(${proj.branch})` : ""}
+                  </text>
+                  <text fg={theme.textMuted}>
+                    {proj.sessions} session{proj.sessions > 1 ? "s" : ""} · {formatTime(proj.lastUsed)}
+                  </text>
+                </box>
               </box>
             )}
           </For>
         </scrollbox>
       </Show>
 
-      {/* Empty state */}
-      <Show when={!loading() && entries().length === 0 && !error()}>
-        <text fg={theme.textMuted}>No files found</text>
-        <box flexDirection="row" gap={1} onMouseUp={() => navigateTo("/")}>
-          <text fg={theme.primary}>📁</text>
-          <text fg={theme.text}>/ (root)</text>
+      {/* Browse mode */}
+      <Show when={mode() === "browse"}>
+        <box flexDirection="row" gap={1}>
+          <Show when={history().length > 0}>
+            <box onMouseUp={() => {
+              const h = history()
+              if (h.length > 1) {
+                const newH = h.slice(0, -1)
+                setHistory(newH)
+                setCurrentPath(newH[newH.length - 1] || "/")
+                scanDir(newH[newH.length - 1] || "/")
+              }
+            }}>
+              <text fg={theme.textMuted}>{"<"} </text>
+            </box>
+          </Show>
+          <text fg={theme.textMuted} wrapMode="none" maxWidth={props.width - 6}>
+            {currentPath() || "/"}
+          </text>
         </box>
-        <box flexDirection="row" gap={1} onMouseUp={() => navigateTo("/root")}>
-          <text fg={theme.primary}>📁</text>
-          <text fg={theme.text}>/root</text>
-        </box>
-        <box flexDirection="row" gap={1} onMouseUp={() => navigateTo("/home")}>
-          <text fg={theme.primary}>📁</text>
-          <text fg={theme.text}>/home</text>
-        </box>
+
+        <Show when={loading()}>
+          <text fg={theme.textMuted}>Scanning...</text>
+        </Show>
+
+        <scrollbox flexGrow={1}>
+          <Show when={!loading()}>
+            <For each={entries()}>
+              {(entry) => (
+                <box
+                  flexDirection="row" gap={1}
+                  onMouseUp={() => {
+                    if (entry.isDir) navigateTo(entry.path)
+                    else openProject(entry.path)
+                  }}
+                >
+                  <text fg={entry.isDir ? theme.primary : theme.textMuted}>
+                    {entry.isDir ? "\u{1F4C1}" : "\u{1F4C4}"}
+                  </text>
+                  <text fg={entry.isDir ? theme.primary : theme.text} wrapMode="none" maxWidth={props.width - 6}>
+                    {entry.name}
+                  </text>
+                </box>
+              )}
+            </For>
+          </Show>
+        </scrollbox>
       </Show>
     </box>
   )
