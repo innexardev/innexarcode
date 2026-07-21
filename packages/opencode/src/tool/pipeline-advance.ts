@@ -1,31 +1,18 @@
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
-import { Pipeline } from "@opencode-ai/core/pipeline"
+import { PipelineStateMachine, PHASE_ORDER, PHASE_LABELS, PHASE_GATES, PHASE_AGENT } from "@opencode-ai/core/pipeline/state"
+import type { Phase } from "@opencode-ai/core/pipeline/state"
 
-const PHASE_ORDER = Pipeline.PHASE_ORDER
-const PHASE_LABELS = Pipeline.PHASE_LABELS
-
-/** Maps pipeline phase to recommended agent */
-const PHASE_AGENT: Record<string, string> = {
-  discovery: "explore",
-  research: "general",
-  planning: "planner",
-  architecture: "architect",
-  debate: "general",
-  implementation: "general",
-  review: "code-reviewer",
-  qa: "qa",
-  security: "security",
-  "self-critique": "auditor",
-  question: "questionador",
-  audit: "auditor",
-  delivery: "release-manager",
-}
+const stateMachine = new PipelineStateMachine()
 
 export const Parameters = Schema.Struct({
-  phase: Schema.Literal("discovery", "research", "planning", "architecture", "debate", "implementation", "review", "qa", "security", "self-critique", "question", "audit", "delivery").annotate({ description: "The pipeline phase to advance to" }),
-  status: Schema.Literal("start", "complete", "fail").annotate({ description: "Status of the phase" }),
-  note: Schema.optional(Schema.String).annotate({ description: "Optional note about this phase" }),
+  phase: Schema.Literal(
+    "discovery", "research", "planning", "architecture", "debate",
+    "implementation", "review", "qa", "security",
+    "self-critique", "question", "audit", "delivery",
+  ).annotate({ description: "The pipeline phase" }),
+  status: Schema.Literal("start", "complete", "fail").annotate({ description: "start | complete | fail" }),
+  note: Schema.optional(Schema.String).annotate({ description: "Optional note" }),
 })
 
 type Metadata = {
@@ -34,6 +21,8 @@ type Metadata = {
   totalPhases: number
   nextPhase?: string
   nextAgent?: string
+  isComplete: boolean
+  gatesRequired: string[]
 }
 
 export const PipelineAdvanceTool = Tool.define<typeof Parameters, Metadata, never>(
@@ -41,41 +30,72 @@ export const PipelineAdvanceTool = Tool.define<typeof Parameters, Metadata, neve
   Effect.gen(function* () {
     return {
       description: [
-        `Advance the Engineering OS pipeline. Current order:`,
-        ...PHASE_ORDER.map((p: string, i: number) => `  ${i + 1}. ${PHASE_LABELS[p]}`),
+        `Engineering OS Pipeline — phases MUST execute in order.`,
         ``,
-        `Call with status="start" when beginning a phase.`,
-        `Call with status="complete" when done. The tool returns the next phase and agent.`,
+        `Phases:`,
+        ...PHASE_ORDER.map((p: string, i: number) => `  ${i + 1}. ${PHASE_LABELS[p]}${PHASE_GATES[p] ? ` [gates: ${PHASE_GATES[p].join(", ")}]` : ""}`),
+        ``,
+        `Call pipeline-advance with status="start" to BEGIN a phase.`,
+        `Call pipeline-advance with status="complete" when DONE.`,
+        `Call pipeline-advance with status="fail" on ERROR.`,
+        ``,
+        `PHASES ARE ENFORCED: you cannot skip phases or start out of order.`,
+        `Required gates must pass before certain phases.`,
       ].join("\n"),
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
-          const phaseIdx = PHASE_ORDER.indexOf(params.phase)
-          const nextPhase = phaseIdx < PHASE_ORDER.length - 1 ? PHASE_ORDER[phaseIdx + 1] : undefined
+          const phase = params.phase as Phase
+          let result: { ok: boolean; error?: string }
+
+          if (params.status === "start") {
+            result = stateMachine.startPhase(phase)
+          } else if (params.status === "complete") {
+            result = stateMachine.completePhase(phase)
+          } else {
+            result = stateMachine.failPhase(phase, params.note || "Unknown error")
+          }
+
+          const status = stateMachine.getStatus()
+          const nextPhase = stateMachine.getNextPhase()
           const nextAgent = nextPhase ? PHASE_AGENT[nextPhase] : undefined
+          const isComplete = stateMachine.isComplete()
+          const requiredGates = PHASE_GATES[phase] || []
 
-          const title = params.status === "start"
-            ? `▶ ${PHASE_LABELS[params.phase]}`
-            : params.status === "complete"
-            ? `✓ ${PHASE_LABELS[params.phase]} → ${nextPhase ? PHASE_LABELS[nextPhase] : "DONE"}`
-            : `✗ ${PHASE_LABELS[params.phase]} FAILED`
+          const title = result.ok
+            ? params.status === "start"
+              ? `▶ ${PHASE_LABELS[phase]}`
+              : params.status === "complete"
+              ? `✓ ${PHASE_LABELS[phase]}${nextPhase ? ` → ${PHASE_LABELS[nextPhase]}` : " → ALL DONE!"}`
+              : `✗ ${PHASE_LABELS[phase]} FAILED`
+            : `✗ ERROR: ${result.error}`
 
-          const output = [
-            `Phase: ${PHASE_LABELS[params.phase]} (${phaseIdx + 1}/${PHASE_ORDER.length})`,
-            `Status: ${params.status}`,
-            nextPhase ? `Next: ${PHASE_LABELS[nextPhase]} → agent: ${nextAgent}` : "All phases complete!",
-            params.note ? `Note: ${params.note}` : "",
-          ].filter(Boolean).join("\n")
+          const lines: string[] = [
+            `Phase: ${PHASE_LABELS[phase]} (${status.completedPhases.length + (params.status === "start" ? 1 : 0)}/${PHASE_ORDER.length})`,
+            `Status: ${result.ok ? params.status : "rejected"}`,
+          ]
+          if (!result.ok) lines.push(`Error: ${result.error}`)
+          if (result.ok && params.status === "start" && requiredGates.length > 0) {
+            lines.push(`Required gates: ${requiredGates.join(", ")}`)
+          }
+          if (result.ok && params.status === "complete") {
+            lines.push(`Completed: ${status.completedPhases.length}/${PHASE_ORDER.length}`)
+            if (nextPhase) lines.push(`Next: ${PHASE_LABELS[nextPhase]} → ${nextAgent}`)
+            else lines.push("ALL PHASES COMPLETE!")
+          }
+          if (params.note) lines.push(`Note: ${params.note}`)
 
           return {
             title,
-            output,
+            output: lines.join("\n"),
             metadata: {
-              currentPhase: params.phase,
-              phaseIndex: phaseIdx,
+              currentPhase: phase,
+              phaseIndex: PHASE_ORDER.indexOf(phase),
               totalPhases: PHASE_ORDER.length,
               nextPhase,
               nextAgent,
+              isComplete,
+              gatesRequired: requiredGates,
             },
           }
         }),

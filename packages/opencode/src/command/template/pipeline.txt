@@ -1,25 +1,28 @@
-Execute ALL 13 pipeline phases in order. NEVER skip phases.
+Execute ALL 13 pipeline phases. Phases are ENFORCED — you cannot skip.
 
 For EACH phase:
-1. Call `pipeline-advance` with { phase: PHASE_NAME, status: "start" }
-2. Delegate the work using `task` tool to the specified sub-agent
-3. Call `pipeline-advance` with { phase: PHASE_NAME, status: "complete" }
-4. Proceed immediately to next phase
+1. Call `pipeline-advance` with { phase: "...", status: "start" }
+   → If it returns an error, you MUST fix it before proceeding
+2. If status="start" shows required gates, run `/gate run-gates` first
+3. Delegate work using `task` tool to the specified agent
+4. Call `pipeline-advance` with { phase: "...", status: "complete" }
 
-Phases:
-1. discovery  → task to explore agent
-2. research   → task to general agent
-3. planning   → task to planner agent
-4. architecture → task to architect agent
-5. debate     → task to general agent
-6. implementation → task to general agent
-7. review     → task to code-reviewer agent
-8. qa         → task to qa agent
-9. security   → task to security agent
-10. self-critique → task to auditor agent
-11. question  → task to questionador agent
-12. audit     → task to auditor agent
-13. delivery  → task to release-manager agent
+ORDER (enforced — previous must complete before next starts):
+1. discovery→explore     8. qa→qa
+2. research→general      9. security→security
+3. planning→planner     10. self-critique→auditor
+4. architecture→architect 11. question→questionador
+5. debate→general       12. audit→auditor
+6. implementation→general 13. delivery→release-manager
+7. review→code-reviewer
 
-IMPORTANT: Complete all phases. After each phase, announce it.
-If a phase fails, fix and retry. Do not skip.
+GATES REQUIRED (run /gate before these phases):
+- review: lint, types
+- qa: build, types, tests
+- security: build, tests
+- delivery: build, lint, types, tests, security
+
+RULES:
+- pipeline-advance returns errors if phase order is wrong — obey them
+- If fail → fix → retry
+- NEVER skip phases
