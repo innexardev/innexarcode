@@ -965,6 +965,16 @@ export function Prompt(props: PromptProps) {
       return true
     }
 
+    // Auto-enrich with /pipeline for project tasks
+    // If user says "criar projeto", transform to "/pipeline criar projeto"
+    if (!trimmed.startsWith("/")) {
+      const { maybeEnrichWithPipeline } = await import("../auto-agent")
+      const enriched = maybeEnrichWithPipeline(trimmed)
+      if (enriched !== trimmed) {
+        setStore("prompt", "input", enriched)
+      }
+    }
+
     // Auto-switch agent based on message content
     // Only switch if not already on the auto orchestrator
     if (agent.name !== "auto") {
