@@ -74,11 +74,18 @@ export function DirectoryPicker(props: { width: number }) {
   })
 
   function openProject(path: string) {
-    route.navigate({
-      type: "session",
-      sessionID: "",
-      prompt: { input: `Open project at ${path}`, parts: [] },
-    })
+    // Write selected path and restart
+    try {
+      // Save selected path and exit — wrapper will restart in this directory
+      const { writeFileSync } = require("fs")
+      writeFileSync("/tmp/opencode-project", path, "utf8")
+    } catch {}
+    // Exit the TUI — wrapper will pick up the path
+    if (typeof window !== "undefined") {
+      (window as any).close?.()
+    } else {
+      process.exit(0)
+    }
   }
 
   async function scanDir(dir: string) {
