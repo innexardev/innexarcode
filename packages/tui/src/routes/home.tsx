@@ -305,24 +305,18 @@ export function Home() {
               <scrollbox flexGrow={1}>
                 <For each={projectSessions()}>
                   {(session) => {
-                    const sessionDir = (session as any).directory || ""
-                    // Current project directory from instance path or process cwd
-                    const currentDir = project.data.instance.path.directory || process.cwd() || ""
-                    // If session is from a different directory, restart TUI there
-                    // Use startsWith check: /root sessions belong to /root/opencode-engos too
-                    const isSameProject = currentDir === sessionDir || currentDir.startsWith(sessionDir + "/") || sessionDir.startsWith(currentDir + "/")
-                    const isDifferentProject = !!sessionDir && !isSameProject
                     return (
                       <box
                         flexDirection="column" gap={0}
                         onMouseUp={() => {
-                          if (isDifferentProject) {
-                            // Restart TUI in that project's directory
+                          const sessionDir = (session as any).directory || ""
+                          const currentDir = project.data.instance.path.directory || process.cwd() || ""
+                          const isSameProject = currentDir === sessionDir || currentDir.startsWith(sessionDir + "/") || sessionDir.startsWith(currentDir + "/")
+                          if (sessionDir && !isSameProject) {
                             try { Bun.write("/tmp/opencode-project", sessionDir); process.exit(0) } catch {}
-                          } else {
-                            // Same project: navigate to session
-                            mainRoute.navigate({ type: "session", sessionID: session.id })
+                            return
                           }
+                          mainRoute.navigate({ type: "session", sessionID: session.id })
                         }}
                         paddingTop={1} paddingBottom={1}
                       >
@@ -330,8 +324,7 @@ export function Home() {
                           {"\u{1F4AC}"} {session.title}
                         </text>
                         <text fg={theme.textMuted} wrapMode="none" maxWidth={rightW() - 2}>
-                          {formatTime(session.time.updated)} {"\u00B7"} {sessionDir ? sessionDir.split("/").pop() : ""}
-                          {isDifferentProject ? " \u00AB" : ""}
+                          {formatTime(session.time.updated)} {"\u00B7"} {((session as any).directory || "").split("/").pop()}
                         </text>
                       </box>
                     )

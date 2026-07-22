@@ -5,45 +5,51 @@ ENGOS_DIR="/root/opencode-engos"
 BUN="$HOME/.bun/bin/bun"
 PROJ_FILE="/tmp/opencode-project"
 
-cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
-
-# Collect flags that bun should receive
+# Collect flags
 BUN_FLAGS=""
+WATCH=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --pure|--print-logs|--no-install) BUN_FLAGS="$BUN_FLAGS $1"; shift ;;
     --watch) WATCH="--watch"; shift ;;
-    -*) shift ;; # skip other flags
+    -*) shift ;;
     *) break ;;
   esac
 done
 
-# If path argument, open that project
+# Determine initial project directory
+PROJECT_DIR=""
 if [ $# -ge 1 ] && [ -d "$1" ]; then
-  rm -f "$PROJ_FILE"
-  exec $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts "$@"
+  PROJECT_DIR="$1"
 elif [ $# -ge 1 ]; then
-  rm -f "$PROJ_FILE"
+  # Non-directory arg — treat as prompt
+  cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
   exec $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts run "$@"
 fi
 
-# No path: show launcher, loop for project selection
+# Main loop: launch TUI, check if it wrote a new project path, restart there
 while true; do
   rm -f "$PROJ_FILE"
-  $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts
 
-  if [ -f "$PROJ_FILE" ]; then
-    SELECTED=$(cat "$PROJ_FILE")
-    rm -f "$PROJ_FILE"
-
-    if [ "$SELECTED" = "/browse" ]; then
-      # Browse mode: re-launch with --browse flag? For now just continue
-      continue
-    elif [ -d "$SELECTED" ]; then
-      cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
-      exec $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts "$SELECTED"
-    fi
+  if [ -n "$PROJECT_DIR" ]; then
+    cd "$PROJECT_DIR" 2>/dev/null
+    $BUN $WATCH run $BUN_FLAGS --conditions=browser "$ENGOS_DIR/packages/opencode/src/index.ts" "$PROJECT_DIR"
   else
-    break
+    cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
+    $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts
   fi
+
+  # Check if TUI wrote a new project path before exiting
+  if [ -f "$PROJ_FILE" ]; then
+    NEW_DIR=$(cat "$PROJ_FILE" 2>/dev/null)
+    rm -f "$PROJ_FILE"
+    if [ -n "$NEW_DIR" ] && [ -d "$NEW_DIR" ] && [ "$NEW_DIR" != "/browse" ]; then
+      PROJECT_DIR="$NEW_DIR"
+      continue
+    fi
+    [ "$NEW_DIR" = "/browse" ] && continue
+  fi
+
+  # No project switch — exit
+  break
 done
