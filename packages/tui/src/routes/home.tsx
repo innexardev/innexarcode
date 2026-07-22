@@ -68,6 +68,10 @@ export function Home() {
         time: { updated: r.time_updated, created: r.time_created },
       })))
       db.close()
+      // Auto-select first project
+      if (rows.length > 0 && rows[0].directory) {
+        setSelectedProject(rows[0].directory)
+      }
     } catch (e: any) {
       // Fallback to sync data
       setAllSessions(sync.data.session as any[])
@@ -99,11 +103,18 @@ export function Home() {
   const projectSessions = createMemo(() => {
     const sel = selectedProject()
     const sessions = allSessions()
-    if (!sel) return sessions.filter((s) => s.parentID === undefined).sort((a, b) => b.time.updated - a.time.updated).slice(0, 10)
+    if (!sel) {
+      // No project selected: show root sessions (not children) from all
+      return sessions
+        .filter((s) => !s.parentID)
+        .sort((a, b) => b.time.updated - a.time.updated)
+        .slice(0, 10)
+    }
+    // Selected project: show root sessions for that directory only
     return sessions
-      .filter((s) => (s as any).directory === sel || s.parentID === undefined)
+      .filter((s) => s.directory === sel && !s.parentID)
       .sort((a, b) => b.time.updated - a.time.updated)
-      .slice(0, 10)
+      .slice(0, 20)
   })
 
   async function scanDir(dir: string) {
@@ -152,12 +163,16 @@ export function Home() {
   }
 
   const formatTime = (ts: number) => {
+    if (!ts) return ""
     const d = new Date(ts)
     const now = new Date()
     const diff = now.getTime() - d.getTime()
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
-    return `${d.getDate()}/${d.getMonth() + 1}`
+    if (diff < 60000) return "now"
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+    const hh = d.getHours().toString().padStart(2, "0")
+    const mm = d.getMinutes().toString().padStart(2, "0")
+    return `${d.getDate()}/${d.getMonth() + 1} ${hh}:${mm}`
   }
 
   const bind = (r: PromptRef | undefined) => {
@@ -221,7 +236,7 @@ export function Home() {
                           {proj.path}
                         </text>
                         <text fg={selectedProject() === proj.path ? theme.background : theme.textMuted}>
-                          {proj.count} session{proj.count !== 1 ? "s" : ""}
+                          {proj.count} session{proj.count !== 1 ? "s" : ""} {"\u00B7"} {formatTime(proj.last)}
                         </text>
                       </box>
                     )}
@@ -287,20 +302,34 @@ export function Home() {
               <text fg={theme.textMuted}>{"\u2500".repeat(Math.max(10, rightW() - 2))}</text>
               <scrollbox flexGrow={1}>
                 <For each={projectSessions()}>
-                  {(session) => (
-                    <box
-                      flexDirection="column" gap={0}
-                      onMouseUp={() => mainRoute.navigate({ type: "session", sessionID: session.id })}
-                      paddingTop={1} paddingBottom={1}
-                    >
-                      <text fg={theme.text} wrapMode="none" maxWidth={rightW() - 2}>
-                        {"\u{1F4AC}"} {session.title}
-                      </text>
-                      <text fg={theme.textMuted} wrapMode="none" maxWidth={rightW() - 2}>
-                        {(session as any).directory || ""} {"\u00B7"} {formatTime(session.time.updated)}
-                      </text>
-                    </box>
-                  )}
+                  {(session) => {
+                    const sessionDir = (session as any).directory || ""
+                    // If session is from a different directory, open that project (restart)
+                    const isDifferentProject = sessionDir && sessionDir !== (sync.data.project?.directory || process.cwd())
+                    return (
+                      <box
+                        flexDirection="column" gap={0}
+                        onMouseUp={() => {
+                          if (isDifferentProject) {
+                            // Restart TUI in that project's directory
+                            try { Bun.write("/tmp/opencode-project", sessionDir); process.exit(0) } catch {}
+                          } else {
+                            // Same project: navigate to session
+                            mainRoute.navigate({ type: "session", sessionID: session.id })
+                          }
+                        }}
+                        paddingTop={1} paddingBottom={1}
+                      >
+                        <text fg={theme.text} wrapMode="none" maxWidth={rightW() - 2}>
+                          {"\u{1F4AC}"} {session.title}
+                        </text>
+                        <text fg={theme.textMuted} wrapMode="none" maxWidth={rightW() - 2}>
+                          {formatTime(session.time.updated)} {"\u00B7"} {sessionDir ? sessionDir.split("/").pop() : ""}
+                          {isDifferentProject ? " \u00AB" : ""}
+                        </text>
+                      </box>
+                    )
+                  }}
                 </For>
                 <Show when={projectSessions().length === 0}>
                   <text fg={theme.textMuted}>No conversations yet</text>
