@@ -4,6 +4,7 @@ export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 ENGOS_DIR="/root/opencode-engos"
 BUN="$HOME/.bun/bin/bun"
 PROJ_FILE="/tmp/opencode-project"
+OPENCODE_ENTRY="$ENGOS_DIR/packages/opencode/src/index.ts"
 
 # Collect flags
 BUN_FLAGS=""
@@ -27,15 +28,15 @@ elif [ $# -ge 1 ]; then
   exec $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts run "$@"
 fi
 
-# Main loop: launch TUI, check if it wrote a new project path, restart there
+# Main loop: always run bun from the opencode dir, pass project dir as arg
 while true; do
   rm -f "$PROJ_FILE"
 
+  cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
+
   if [ -n "$PROJECT_DIR" ]; then
-    cd "$PROJECT_DIR" 2>/dev/null
-    $BUN $WATCH run $BUN_FLAGS --conditions=browser "$ENGOS_DIR/packages/opencode/src/index.ts" "$PROJECT_DIR"
+    $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts "$PROJECT_DIR"
   else
-    cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
     $BUN $WATCH run $BUN_FLAGS --conditions=browser ./src/index.ts
   fi
 

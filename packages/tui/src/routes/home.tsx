@@ -70,8 +70,12 @@ export function Home() {
         time: { updated: r.time_updated, created: r.time_created },
       })))
       db.close()
-      // Auto-select first project
-      if (rows.length > 0 && rows[0].directory) {
+      // Auto-select the current project directory if it exists in sessions
+      const currentDir = project.data.instance.path.directory || process.cwd() || ""
+      const matchingDir = rows.find(r => r.directory && (currentDir === r.directory || currentDir.startsWith(r.directory + "/") || r.directory.startsWith(currentDir + "/")))
+      if (matchingDir?.directory) {
+        setSelectedProject(matchingDir.directory)
+      } else if (rows.length > 0 && rows[0].directory) {
         setSelectedProject(rows[0].directory)
       }
     } catch (e: any) {
@@ -101,20 +105,20 @@ export function Home() {
       .slice(0, 15)
   })
 
-  // Sessions for selected project
+  // Sessions for selected project (show root + children, sort by time)
   const projectSessions = createMemo(() => {
     const sel = selectedProject()
     const sessions = allSessions()
     if (!sel) {
-      // No project selected: show root sessions (not children) from all
       return sessions
         .filter((s) => !s.parentID)
         .sort((a, b) => b.time.updated - a.time.updated)
-        .slice(0, 10)
+        .slice(0, 15)
     }
-    // Selected project: show root sessions for that directory only
+    const projectRoots = sessions.filter((s) => s.directory === sel && !s.parentID)
+    const projectChildren = sessions.filter((s) => s.directory === sel && s.parentID)
     return sessions
-      .filter((s) => s.directory === sel && !s.parentID)
+      .filter((s) => s.directory === sel)
       .sort((a, b) => b.time.updated - a.time.updated)
       .slice(0, 20)
   })
