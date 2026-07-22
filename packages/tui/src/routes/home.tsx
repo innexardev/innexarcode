@@ -13,6 +13,7 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { useTuiConfig } from "../config"
 import { HomeSessionDestinationProvider } from "./home/session-destination"
 import { useTheme } from "../context/theme"
+import { useProject } from "../context/project"
 import path from "path"
 import { Database } from "bun:sqlite"
 
@@ -26,6 +27,7 @@ export function Home() {
   const pluginRuntime = usePluginRuntime()
   const sync = useSync()
   const sdk = useSDK()
+  const project = useProject()
   const route = useRouteData("home")
   const mainRoute = useRoute()
   const promptRef = usePromptRef()
@@ -304,8 +306,12 @@ export function Home() {
                 <For each={projectSessions()}>
                   {(session) => {
                     const sessionDir = (session as any).directory || ""
-                    // If session is from a different directory, open that project (restart)
-                    const isDifferentProject = sessionDir && sessionDir !== (sync.data.project?.directory || process.cwd())
+                    // Current project directory from instance path or process cwd
+                    const currentDir = project.data.instance.path.directory || process.cwd() || ""
+                    // If session is from a different directory, restart TUI there
+                    // Use startsWith check: /root sessions belong to /root/opencode-engos too
+                    const isSameProject = currentDir === sessionDir || currentDir.startsWith(sessionDir + "/") || sessionDir.startsWith(currentDir + "/")
+                    const isDifferentProject = !!sessionDir && !isSameProject
                     return (
                       <box
                         flexDirection="column" gap={0}
