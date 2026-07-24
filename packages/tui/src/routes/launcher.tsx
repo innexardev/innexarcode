@@ -32,14 +32,23 @@ export function LauncherView() {
   const [expandedDir, setExpandedDir] = createSignal<string | null>(null)
   const [sessionIdx, setSessionIdx] = createSignal(-1)
 
-  // Load all sessions across all projects
-  // NOTE: pass directory="" to prevent SDK from auto-injecting current dir
+  // Load all sessions across all projects via direct fetch
+  // Use sdk.fetch (raw) + sdk.url to bypass SDK client interceptor
+  // The interceptor auto-injects directory= into every non-/api/ GET
+  const sdkFetch = sdk.fetch
+  const sdkUrl = sdk.url
   const [sessions] = createResource(
-    () => sdk.client.experimental.session.list({
-      directory: "",
-      start: Date.now() - 90 * 24 * 60 * 60 * 1000,
-      limit: 200,
-    }).then(r => r.data ?? []),
+    async () => {
+      try {
+        const start = Date.now() - 90 * 24 * 60 * 60 * 1000
+        const res = await sdkFetch(`${sdkUrl}/experimental/session?start=${start}&limit=200`)
+        if (!res.ok) return []
+        const data = await res.json()
+        return (data ?? []) as SessionInfo[]
+      } catch {
+        return []
+      }
+    },
   )
 
   // Group by directory, sorted by most recent session
@@ -66,71 +75,104 @@ export function LauncherView() {
 
   // Bind keyboard navigation
   useBindings(() => ({
-    up: () => {
-      if (sessionIdx() >= 0) {
-        setSessionIdx((i) => i - 1)
-      } else {
-        setSelectedIdx((i) => Math.max(0, i - 1))
-      }
-    },
-    down: () => {
-      if (expandedDir() && sessionIdx() >= 0) {
-        const proj = projects()[selectedIdx()]
-        if (proj && sessionIdx() < proj.sessions.length - 1) {
-          setSessionIdx((i) => i + 1)
-        } else {
-          setSessionIdx(-1)
-          setSelectedIdx((i) => Math.min(projects().length - 1, i + 1))
-        }
-      } else {
-        setSelectedIdx((i) => Math.min(projects().length - 1, i + 1))
-      }
-    },
-    enter: () => {
-      if (expandedDir() && sessionIdx() >= 0) {
-        const proj = projects()[selectedIdx()]
-        const session = proj?.sessions[sessionIdx()]
-        if (session) openSession(session)
-        return
-      }
-      const proj = projects()[selectedIdx()]
-      if (!proj) return
-      if (proj.directory === currentDir()) {
-        if (proj.sessions.length > 0) {
-          if (expandedDir() === proj.directory) {
-            setExpandedDir(null)
-            setSessionIdx(-1)
+    bindings: [
+      {
+        key: "up",
+        desc: "Previous item",
+        group: "Launcher",
+        cmd: () => {
+          if (sessionIdx() >= 0) {
+            setSessionIdx((i) => Math.max(0, i - 1))
           } else {
+            setSelectedIdx((i) => Math.max(0, i - 1))
+          }
+        },
+      },
+      {
+        key: "down",
+        desc: "Next item",
+        group: "Launcher",
+        cmd: () => {
+          if (expandedDir() && sessionIdx() >= 0) {
+            const proj = projects()[selectedIdx()]
+            if (proj && sessionIdx() < proj.sessions.length - 1) {
+              setSessionIdx((i) => i + 1)
+            } else {
+              setSessionIdx(-1)
+              setSelectedIdx((i) => Math.min(projects().length - 1, i + 1))
+            }
+          } else {
+            setSelectedIdx((i) => Math.min(projects().length - 1, i + 1))
+          }
+        },
+      },
+      {
+        key: "return",
+        desc: "Open / expand",
+        group: "Launcher",
+        cmd: () => {
+          if (expandedDir() && sessionIdx() >= 0) {
+            const proj = projects()[selectedIdx()]
+            const session = proj?.sessions[sessionIdx()]
+            if (session) openSession(session)
+            return
+          }
+          const proj = projects()[selectedIdx()]
+          if (!proj) return
+          if (proj.directory === currentDir()) {
+            if (proj.sessions.length > 0) {
+              if (expandedDir() === proj.directory) {
+                setExpandedDir(null)
+                setSessionIdx(-1)
+              } else {
+                setExpandedDir(proj.directory)
+                setSessionIdx(0)
+              }
+            } else {
+              route.navigate({ type: "home" })
+            }
+          } else {
+            openDirectory(proj.directory)
+          }
+        },
+      },
+      {
+        key: "left",
+        desc: "Collapse",
+        group: "Launcher",
+        cmd: () => {
+          if (sessionIdx() >= 0) {
+            setSessionIdx(-1)
+          } else if (expandedDir()) {
+            setExpandedDir(null)
+          }
+        },
+      },
+      {
+        key: "right",
+        desc: "Expand",
+        group: "Launcher",
+        cmd: () => {
+          const proj = projects()[selectedIdx()]
+          if (proj && expandedDir() !== proj.directory) {
             setExpandedDir(proj.directory)
             setSessionIdx(0)
           }
-        } else {
-          route.navigate({ type: "home" })
-        }
-      } else {
-        openDirectory(proj.directory)
-      }
-    },
-    left: () => {
-      if (sessionIdx() >= 0) {
-        setSessionIdx(-1)
-      }
-    },
-    right: () => {
-      const proj = projects()[selectedIdx()]
-      if (proj && expandedDir() !== proj.directory) {
-        setExpandedDir(proj.directory)
-        setSessionIdx(0)
-      }
-    },
-    escape: () => {
-      // Go to home screen
-      route.navigate({ type: "home" })
-    },
-    n: () => {
-      // Go to home screen - user can type /sessions or their prompt
-      route.navigate({ type: "home" })
-    },
+        },
+      },
+      {
+        key: "escape",
+        desc: "Home",
+        group: "Launcher",
+        cmd: () => route.navigate({ type: "home" }),
+      },
+      {
+        key: "n",
+        desc: "Home",
+        group: "Launcher",
+        cmd: () => route.navigate({ type: "home" }),
+      },
+    ],
   }))
 
   function openSession(session: SessionInfo) {
