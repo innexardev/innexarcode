@@ -24,14 +24,18 @@ export type MissionRoute = {
   type: "mission"
 }
 
-export type Route = HomeRoute | SessionRoute | PluginRoute | MissionRoute
+export type LauncherRoute = {
+  type: "launcher"
+}
+
+export type Route = HomeRoute | SessionRoute | PluginRoute | MissionRoute | LauncherRoute
 
 export const { use: useRoute, provider: RouteProvider } = createSimpleContext({
   name: "Route",
   init: (props: { initialRoute?: Route }) => {
     const startup = useTuiStartup()
     const [store, setStore] = createStore<Route>(
-      props.initialRoute ?? initialRoute(startup.initialRoute) ?? { type: "home" },
+      props.initialRoute ?? initialRoute(startup.initialRoute) ?? { type: "launcher" },
     )
 
     return {
@@ -55,6 +59,7 @@ function initialRoute(value: unknown): Route | undefined {
     return { type: "plugin", id: value.id }
   }
   if (value.type === "mission") return { type: "mission" }
+  if (value.type === "launcher") return { type: "launcher" }
 }
 
 export type RouteContext = ReturnType<typeof useRoute>

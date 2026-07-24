@@ -54,6 +54,7 @@ import { ThemeProvider, useTheme } from "./context/theme"
 import { Home } from "./routes/home"
 import { Session } from "./routes/session"
 import { MissionView } from "./routes/mission"
+import { LauncherView } from "./routes/launcher"
 import { PromptHistoryProvider } from "./component/prompt/history"
 import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
@@ -93,6 +94,7 @@ registerOpencodeSpinner()
 const appGlobalBindingCommands = [
   "session.list",
   "session.new",
+  "app.launcher",
   "app.mission",
   "session.quick_switch.1",
   "session.quick_switch.2",
@@ -479,6 +481,11 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       return
     }
 
+    if (route.data.type === "launcher") {
+      renderer.setTerminalTitle("OC | Launcher")
+      return
+    }
+
     if (route.data.type === "plugin") {
       renderer.setTerminalTitle(`OC | ${route.data.id}`)
     }
@@ -816,6 +823,16 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         category: "System",
       },
       {
+        name: "app.launcher",
+        title: "Open Launcher",
+        slashName: "launcher",
+        run: () => {
+          route.navigate({ type: "launcher" })
+          dialog.clear()
+        },
+        category: "System",
+      },
+      {
         name: "app.mission",
         title: "Open Mission Control",
         slashName: "mission",
@@ -1144,6 +1161,9 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
               <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
                 {(_) => <Session />}
               </Show>
+            </Match>
+            <Match when={route.data.type === "launcher"}>
+              <LauncherView />
             </Match>
             <Match when={route.data.type === "mission"}>
               <MissionView />
