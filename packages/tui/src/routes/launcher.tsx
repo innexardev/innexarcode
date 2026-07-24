@@ -2,14 +2,13 @@
 import { createMemo, createResource, createSignal, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useSync } from "../context/sync"
-import { useSDK } from "../context/sdk"
 import { useRoute } from "../context/route"
-import { useTerminalDimensions } from "@opentui/solid"
-import { useProject } from "../context/project"
-import { useToast } from "../ui/toast"
 import { useExit } from "../context/exit"
 import { useBindings } from "../keymap"
 import { writeFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
+import { Database } from "bun:sqlite"
 
 type SessionInfo = {
   id: string
@@ -22,34 +21,36 @@ type SessionInfo = {
 export function LauncherView() {
   const { theme } = useTheme()
   const sync = useSync()
-  const sdk = useSDK()
   const route = useRoute()
-  const project = useProject()
   const exit = useExit()
-  const dims = useTerminalDimensions()
-  const toast = useToast()
   const [selectedIdx, setSelectedIdx] = createSignal(0)
   const [expandedDir, setExpandedDir] = createSignal<string | null>(null)
   const [sessionIdx, setSessionIdx] = createSignal(-1)
 
-  // Load all sessions across all projects via direct fetch
-  // Use sdk.fetch (raw) + sdk.url to bypass SDK client interceptor
-  // The interceptor auto-injects directory= into every non-/api/ GET
-  const sdkFetch = sdk.fetch
-  const sdkUrl = sdk.url
-  const [sessions] = createResource(
-    async () => {
-      try {
-        const start = Date.now() - 90 * 24 * 60 * 60 * 1000
-        const res = await sdkFetch(`${sdkUrl}/experimental/session?start=${start}&limit=200`)
-        if (!res.ok) return []
-        const data = await res.json()
-        return (data ?? []) as SessionInfo[]
-      } catch {
-        return []
-      }
-    },
-  )
+  // Load all sessions from SQLite directly — avoids HTTP + auth + interceptor
+  const dbPath = join(homedir(), ".local", "share", "opencode", "opencode.db")
+  const [sessions] = createResource(async () => {
+    try {
+      const db = new Database(dbPath, { readonly: true })
+      const rows = db.query(`
+        SELECT id, title, directory, time_updated
+        FROM session
+        WHERE parent_id IS NULL AND time_archived IS NULL
+        ORDER BY time_updated DESC
+        LIMIT 200
+      `).all() as { id: string; title: string; directory: string; time_updated: number }[]
+      db.close()
+      return rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        directory: r.directory,
+        time: { updated: r.time_updated },
+        project: null,
+      })) as SessionInfo[]
+    } catch {
+      return [] as SessionInfo[]
+    }
+  })
 
   // Group by directory, sorted by most recent session
   const projects = createMemo(() => {
