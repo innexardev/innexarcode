@@ -14,7 +14,7 @@ env:
 
 jobs:
   build-linux:
-    runs-on: [self-hosted, linux, ubuntu-latest]
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -77,7 +77,7 @@ jobs:
 
   release:
     needs: [build-linux, build-windows, build-macos]
-    runs-on: [self-hosted, linux, ubuntu-latest]
+    runs-on: [self-hosted, Linux, X64]
     if: github.ref == 'refs/heads/dev'
     steps:
       - uses: actions/download-artifact@v4
