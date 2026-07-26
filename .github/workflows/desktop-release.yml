@@ -29,7 +29,6 @@ jobs:
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           bun install --frozen-lockfile
-          bun install --cwd packages/desktop @electron/asar
 
       - name: Build Electron
         working-directory: packages/desktop
