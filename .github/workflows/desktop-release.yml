@@ -16,7 +16,10 @@ env:
 
 jobs:
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -29,9 +32,6 @@ jobs:
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           bun install --frozen-lockfile
-          # Força instalação dos binários nativos Windows do node-pty
-          bun install --no-optional --cwd packages/desktop @lydell/node-pty-win32-x64 @lydell/node-pty 2>/dev/null || true
-          ls packages/desktop/node_modules/@lydell/ 2>/dev/null
 
       - name: Build Electron
         working-directory: packages/desktop
@@ -39,69 +39,14 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run build
 
-      - name: Package (dir only, no NSIS)
+      - name: Package (portable dir)
         working-directory: packages/desktop
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} npx electron-builder --win dir --config electron-builder.config.ts
-
-      - name: Patch node-pty for Windows
-        run: |
-          export PATH="$HOME/.bun/bin:$PATH"
-          ASAR="packages/desktop/dist/win-unpacked/resources/app.asar"
-          bunx @electron/asar extract "$ASAR" /tmp/asar-fix
-
-          # O index.js do node-pty faz require('@lydell/node-pty-win32-x64').
-          # Esse pacote NÃO está dentro do asar porque é optionalDependency.
-          # Precisamos copiá-lo manualmente.
-          WIN_PTY_SRC="packages/desktop/node_modules/@lydell/node-pty-win32-x64"
-          ASAR_NM="/tmp/asar-fix/node_modules/@lydell"
-
-          if [ -d "$WIN_PTY_SRC" ]; then
-            mkdir -p "$ASAR_NM"
-            cp -r "$WIN_PTY_SRC" "$ASAR_NM/node-pty-win32-x64"
-            echo "✅ Instalado @lydell/node-pty-win32-x64 dentro do asar"
-            find "$ASAR_NM/node-pty-win32-x64" -name "*.node" -o -name "*.js" 2>/dev/null | head -10
-          else
-            echo "❌ node-pty-win32-x64 não encontrado!"
-            find packages/desktop/node_modules/@lydell -maxdepth 1 -type d 2>/dev/null
-          fi
-
-          bunx @electron/asar pack /tmp/asar-fix "$ASAR"
-          rm -rf /tmp/asar-fix
 
       - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
           name: opencode-windows
           path: packages/desktop/dist/win-unpacked/
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: dev-${{ github.run_number }}
-          name: "InnexarCode Dev #${{ github.run_number }}"
-          files: |
-            packages/desktop/dist/win-unpacked/
-          prerelease: true
-          generate_release_notes: false
-
-  release:
-    needs: build-windows
-    runs-on: ${{ vars.SELF_HOSTED_RUNNER || 'ubuntu-latest' }}
-    if: github.ref == 'refs/heads/dev'
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: dev-${{ github.run_number }}
-          name: "Dev Build #${{ github.run_number }}"
-          files: |
-            artifacts/opencode-windows/*
-            artifacts/opencode-windows-portable/*
-          prerelease: true
-          generate_release_notes: false
