@@ -13,39 +13,17 @@ env:
   OPENCODE_CHANNEL: dev
 
 jobs:
-  build-linux:
+  build-windows:
     runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - name: Build + Package
+      - name: Build + Package Windows
         working-directory: packages/desktop
         run: |
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run build
-          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run package:linux
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: opencode-linux
-          path: |
-            packages/desktop/dist/*.AppImage
-            packages/desktop/dist/*.deb
-            packages/desktop/dist/*.rpm
-            packages/desktop/dist/latest-linux.yml
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - name: Build + Package
-        working-directory: packages/desktop
-        run: |
-          $env:OPENCODE_CHANNEL="${{ env.OPENCODE_CHANNEL }}"
-          bun run build
-          bun run package:win
+          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run package:win
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -54,51 +32,25 @@ jobs:
             packages/desktop/dist/*.exe
             packages/desktop/dist/*.7z
             packages/desktop/dist/latest.yml
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - name: Build + Package
-        working-directory: packages/desktop
-        run: |
-          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run build
-          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run package:mac
-      - name: Upload artifacts
+      - name: Upload portable for website
         uses: actions/upload-artifact@v4
         with:
-          name: opencode-macos
-          path: |
-            packages/desktop/dist/*.dmg
-            packages/desktop/dist/*.zip
-            packages/desktop/dist/latest-mac.yml
+          name: opencode-windows-portable
+          path: packages/desktop/dist/win-unpacked/
 
-  release:
-    needs: [build-linux, build-windows, build-macos]
+  deploy:
+    needs: build-windows
     runs-on: [self-hosted, Linux, X64]
     if: github.ref == 'refs/heads/dev'
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: dev-${{ github.run_number }}
-          name: "Dev Build #${{ github.run_number }}"
-          body: "Automated dev build from commit ${{ github.sha }}"
-          files: |
-            artifacts/opencode-linux/*
-            artifacts/opencode-windows/*
-            artifacts/opencode-macos/*
-          prerelease: true
-          generate_release_notes: false
-
+      - name: Create .tar.gz for website
+        run: |
+          cd artifacts/opencode-windows-portable
+          tar -czf ../opencode-desktop-win-portable.tar.gz .
       - name: Deploy to dev.innexar.app
         run: |
-          echo "Build ${{ github.run_number }} completed"
-          echo "Downloads available at:"
-          echo "  https://github.com/${{ github.repository }}/releases/tag/dev-${{ github.run_number }}"
+          echo "Build complete. Artifacts ready:"
+          find artifacts -type f -name "*.exe" -o -name "*.tar.gz"

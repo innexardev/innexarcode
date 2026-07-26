@@ -53,6 +53,9 @@ const getBase = (appId: string): Configuration => ({
     desktopName: `${appId}.desktop`,
   },
   files: ["out/**/*", "resources/**/*"],
+  asarUnpack: [
+    "node_modules/@lydell/node-pty*/**/*",
+  ],
   extraResources: [
     {
       from: "native/",
