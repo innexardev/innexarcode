@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InnexarCode — Download</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 640px;
+      padding: 2rem;
+      text-align: center;
+    }
+    .logo { font-size: 3rem; font-weight: 800; letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #818cf8, #6366f1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem; }
+    .subtitle { color: #94a3b8; font-size: 1.1rem; margin-bottom: 2.5rem; }
+    .card {
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      transition: transform .2s;
+    }
+    .card:hover { transform: translateY(-2px); }
+    .card h2 { font-size: 1.25rem; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem; justify-content: center; }
+    .card p { color: #94a3b8; font-size: .9rem; margin-bottom: 1.25rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .75rem 1.5rem; border-radius: .75rem; text-decoration: none;
+      font-weight: 600; font-size: 1rem; transition: all .2s;
+      border: none; cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      color: #fff; box-shadow: 0 4px 20px rgba(99,102,241,.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(99,102,241,.45); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+    .badge {
+      display: inline-block; font-size: .75rem; padding: .2rem .6rem;
+      border-radius: 9999px; background: rgba(99,102,241,0.2);
+      color: #a5b4fc; font-weight: 500; margin-left: .5rem;
+    }
+    .version { color: #64748b; font-size: .85rem; margin-top: 2rem; }
+    .footer { margin-top: 3rem; color: #475569; font-size: .85rem; }
+    .footer a { color: #818cf8; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    .github-link { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">⌘ InnexarCode</div>
+    <p class="subtitle">Agente de IA open source para codificação</p>
+
+    <div class="card">
+      <h2>🪟 Windows</h2>
+      <p>Versão portátil — extraia e execute. Sem instalação.</p>
+      <a href="https://github.com/innexardev/innexarcode/releases/latest" class="btn btn-primary" target="_blank">
+        ⬇ Baixar para Windows
+      </a>
+    </div>
+
+    <div class="card">
+      <h2>🐧 Linux</h2>
+      <p>AppImage, deb e rpm disponíveis.</p>
+      <a href="https://github.com/innexardev/innexarcode/releases/latest" class="btn btn-secondary" target="_blank">
+        ⬇ Baixar para Linux
+      </a>
+    </div>
+
+    <div class="card">
+      <h2>🍎 macOS</h2>
+      <p>Em breve — DMG e ZIP.</p>
+      <a href="https://github.com/innexardev/innexarcode/releases" class="btn btn-secondary" target="_blank">
+        Ver releases
+      </a>
+    </div>
+
+    <div class="version">
+      <a href="https://github.com/innexardev/innexarcode/releases" target="_blank">Todas as versões</a>
+      <span class="badge">Open Source</span>
+    </div>
+
+    <div class="footer">
+      <a href="https://github.com/innexardev/innexarcode">GitHub</a> ·
+      <a href="https://github.com/innexardev/innexarcode/releases">Releases</a>
+    </div>
+  </div>
+</body>
+</html>
