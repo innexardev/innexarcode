@@ -55,6 +55,7 @@
     "sury": "11.0.0-alpha.4",
     "typescript": "~5.6.2",
     "vite": "catalog:",
+    "@electron/asar": "^3.4.1",
     "zod-openapi": "5.4.6"
   },
   "optionalDependencies": {

@@ -29,6 +29,7 @@ jobs:
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           bun install --frozen-lockfile
+          bun install --cwd packages/desktop @electron/asar
 
       - name: Build Electron
         working-directory: packages/desktop
@@ -44,8 +45,9 @@ jobs:
 
       - name: Patch node-pty for Windows
         run: |
+          export PATH="$HOME/.bun/bin:$PATH"
           ASAR="packages/desktop/dist/win-unpacked/resources/app.asar"
-          npx @electron/asar extract "$ASAR" /tmp/asar-fix
+          bunx @electron/asar extract "$ASAR" /tmp/asar-fix
           PTY_FILE="/tmp/asar-fix/node_modules/@lydell/node-pty/index.js"
           if [ -f "$PTY_FILE" ]; then
             sed -i 's/node-pty-linux-x64/node-pty-win32-x64/g' "$PTY_FILE"
@@ -55,7 +57,7 @@ jobs:
             echo "❌ File not found at $PTY_FILE"
             find /tmp/asar-fix -path "*/node-pty/index.js" 2>/dev/null | head -5
           fi
-          npx @electron/asar pack /tmp/asar-fix "$ASAR"
+          bunx @electron/asar pack /tmp/asar-fix "$ASAR"
           rm -rf /tmp/asar-fix
 
       - name: Upload portable
