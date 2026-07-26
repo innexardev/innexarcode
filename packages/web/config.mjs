@@ -1,14 +1,12 @@
-const stage = process.env.SST_STAGE || "dev"
-
 export default {
-  url: stage === "production" ? "https://opencode.ai" : `https://${stage}.opencode.ai`,
-  console: stage === "production" ? "https://opencode.ai/auth" : `https://${stage}.opencode.ai/auth`,
-  email: "help@anoma.ly",
+  url: "https://dev.innexar.app",
+  console: "https://dev.innexar.app/auth",
+  email: "help@innexar.app",
   socialCard: "https://social-cards.sst.dev",
-  github: "https://github.com/anomalyco/opencode",
-  discord: "https://opencode.ai/discord",
+  github: "https://github.com/innexar-plat/opencode",
+  discord: "#",
   headerLinks: [
-    { name: "app.header.home", url: "/" },
-    { name: "app.header.docs", url: "/docs/" },
+    { name: "Home", url: "/" },
+    { name: "Docs", url: "/docs/" },
   ],
 }
