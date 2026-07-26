@@ -1,0 +1,18 @@
+# Code Review Pipeline
+
+Review the project without modifying code initially.
+
+$ARGUMENTS
+
+Phases:
+1. Read project structure → task to explore agent
+2. Analyze architecture → task to architect agent
+3. Backend review → task to code-reviewer agent
+4. Frontend review → task to ux-reviewer agent
+5. Database review → task to general agent
+6. Security review → task to security agent
+7. Performance review → task to performance agent
+8. Generate report → task to documentation agent
+
+For each phase: call pipeline-advance before and after.
+Focus on FINDING issues, not fixing them.

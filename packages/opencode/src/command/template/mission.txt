@@ -1,0 +1,18 @@
+# Mission Engine
+
+Execute the appropriate pipeline for this task.
+
+$ARGUMENTS
+
+The Mission Engine has detected this task type. Execute the corresponding pipeline:
+
+To run the correct pipeline, use:
+/pipeline-{type} replace-this-with-actual-type
+
+Available pipelines: bug, review, refactor, upgrade, performance, security, deploy, testing, docs, feature, create
+
+For example, for a bug: /pipeline-bug <description>
+For a review: /pipeline-review <description>
+
+Select the matching pipeline and execute ALL its phases.
+Do NOT skip any phase.

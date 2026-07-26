@@ -1,0 +1,20 @@
+Run Delivery phase for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+1. Verify the release checklist:
+   - Build passes
+   - Lint passes
+   - Typecheck passes
+   - Tests pass
+   - Coverage >= threshold
+   - Security scan passes
+   - Code review completed
+   - Smoke test completed
+2. Use `release-manager` logic or available tools.
+3. If anything fails, return the failure and do not deliver.
+4. On success, summarize what is being delivered.
+
+No code should be merged without validation.

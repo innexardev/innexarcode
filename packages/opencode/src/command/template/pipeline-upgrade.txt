@@ -1,0 +1,21 @@
+# Upgrade Pipeline
+
+Upgrade dependencies safely with backup and rollback.
+
+$ARGUMENTS
+
+Phases:
+1. Check current version → task to general agent
+2. Research changelog → task to general agent
+3. Research breaking changes → task to general agent
+4. Create upgrade plan → task to planner agent
+5. Create backup → task to general agent
+6. Execute upgrade → task to general agent
+7. Build verification → task to general agent
+8. Run tests → task to qa agent
+9. Benchmark → task to performance agent
+10. Code review → task to code-reviewer agent
+11. Delivery → task to release-manager agent
+
+For each phase: call pipeline-advance before and after.
+Always create backup before upgrading.

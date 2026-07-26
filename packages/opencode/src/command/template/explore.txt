@@ -1,0 +1,16 @@
+# Explore — File Tree Navigator
+
+Explore the project file tree to understand the codebase structure.
+
+## Usage
+
+Navigate directories by specifying a path. The tree shows:
+- Directory hierarchy
+- File names with extensions
+- File sizes (KB/MB)
+- File types
+
+Start from $ARGUMENTS or project root.
+
+Show the tree structure with indentation using ├── └── │ characters.
+Mark directories with / and show file sizes.

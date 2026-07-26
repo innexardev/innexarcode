@@ -1,0 +1,16 @@
+Run Debate phase for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+1. Take the current proposal/solution and run it through a 4-agent review:
+   - Backend: API/data/performance concerns
+   - QA: testability, edge cases, coverage
+   - Security: OWASP, injection, secrets, auth
+   - Architect: structural/dependency/ADR concerns
+2. Use the `debate` tool if available; otherwise simulate the debate by delegating to the backend, qa, security, and architect agents in parallel.
+3. Summarize the critiques and the updated proposal.
+4. Save the debate record to `.opencode/debate/YYYY-MM-DD-debate.md`.
+
+Be adversarial. Surface real risks.

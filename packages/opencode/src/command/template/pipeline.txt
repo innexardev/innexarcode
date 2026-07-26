@@ -1,0 +1,28 @@
+Execute ALL 13 pipeline phases. Phases are ENFORCED — you cannot skip.
+
+For EACH phase:
+1. Call `pipeline-advance` with { phase: "...", status: "start" }
+   → If it returns an error, you MUST fix it before proceeding
+2. If status="start" shows required gates, run `/gate run-gates` first
+3. Delegate work using `task` tool to the specified agent
+4. Call `pipeline-advance` with { phase: "...", status: "complete" }
+
+ORDER (enforced — previous must complete before next starts):
+1. discovery→explore     8. qa→qa
+2. research→general      9. security→security
+3. planning→planner     10. self-critique→auditor
+4. architecture→architect 11. question→questionador
+5. debate→general       12. audit→auditor
+6. implementation→general 13. delivery→release-manager
+7. review→code-reviewer
+
+GATES REQUIRED (run /gate before these phases):
+- review: lint, types
+- qa: build, types, tests
+- security: build, tests
+- delivery: build, lint, types, tests, security
+
+RULES:
+- pipeline-advance returns errors if phase order is wrong — obey them
+- If fail → fix → retry
+- NEVER skip phases

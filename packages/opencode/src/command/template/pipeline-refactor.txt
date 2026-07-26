@@ -1,0 +1,20 @@
+# Refactoring Pipeline
+
+Refactor code safely with benchmarks before/after.
+
+$ARGUMENTS
+
+Phases:
+1. Discover codebase → task to explore agent
+2. Map dependencies → task to cto agent
+3. Detect code smells → task to refactor agent
+4. Create refactor plan → task to planner agent
+5. Evaluate risks → task to architect agent
+6. Execute refactoring → task to refactor agent
+7. Benchmark before/after → task to performance agent
+8. Run tests → task to qa agent
+9. Code review → task to code-reviewer agent
+10. QA → task to qa agent
+11. Delivery → task to release-manager agent
+
+For each phase: call pipeline-advance before and after.

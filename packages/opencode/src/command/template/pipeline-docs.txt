@@ -1,0 +1,18 @@
+# Documentation Pipeline
+
+Generate and update project documentation.
+
+$ARGUMENTS
+
+Phases:
+1. Read project → task to explore agent
+2. Find APIs → task to general agent
+3. Find components → task to general agent
+4. Find models → task to general agent
+5. Generate README → task to documentation agent
+6. Generate API docs → task to documentation agent
+7. Generate diagrams → task to documentation agent
+8. Generate/update ADRs → task to documentation agent
+9. Update changelog → task to documentation agent
+
+For each phase: call pipeline-advance before and after.

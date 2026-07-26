@@ -1,0 +1,20 @@
+# Performance Optimization Pipeline
+
+Measure, optimize, and verify performance improvements.
+
+$ARGUMENTS
+
+Phases:
+1. Collect metrics → task to performance agent
+2. Analyze CPU → task to performance agent
+3. Analyze memory → task to performance agent
+4. Analyze database → task to database agent
+5. Analyze frontend → task to ux-reviewer agent
+6. Analyze bundle → task to performance agent
+7. Create optimization plan → task to planner agent
+8. Apply optimizations → task to general agent
+9. Benchmark before/after → task to performance agent
+10. Generate report → task to documentation agent
+
+For each phase: call pipeline-advance before and after.
+Always measure BEFORE and AFTER to verify improvement.

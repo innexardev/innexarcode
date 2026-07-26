@@ -1,0 +1,19 @@
+Run Discovery phase for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+1. Scan the project:
+   - README, AGENTS.md, CLAUDE.md, .cursorrules
+   - package.json, .env.example, docker files, migrations, CI, tsconfig
+2. Save the discovery output to `.opencode/project.json`
+3. Return a concise summary of:
+   - project type
+   - tech stack
+   - key directories
+   - build/test/lint commands
+   - any instruction files found
+   - open issues or risks
+
+Use `glob`, `read`, and `bash` tools. Avoid asking the user questions unless the repo cannot answer something important.

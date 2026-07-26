@@ -1,0 +1,19 @@
+# Bugfix Pipeline
+
+Execute ALL phases in order for this bug fix.
+
+$ARGUMENTS
+
+Phases:
+1. Reproduce the bug → task to general agent
+2. Analyze root cause → task to general agent
+3. Research similar issues → task to general agent
+4. Create fix plan → task to planner agent
+5. Implement fix → task to general agent
+6. Test the fix → task to qa agent
+7. Review the fix → task to code-reviewer agent
+8. QA verification → task to qa agent
+9. Delivery → task to release-manager agent
+
+For each phase: call pipeline-advance before and after.
+NEVER skip phases. If a phase fails, fix and retry.

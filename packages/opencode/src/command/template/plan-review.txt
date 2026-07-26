@@ -1,0 +1,20 @@
+Run Plan Review for Engineering OS pipeline.
+
+$ARGUMENTS
+
+## Goals
+
+Review an existing plan for:
+- Missing requirements (auth, logging, audit, rate limit, cache, backup, seeds)
+- Unclear acceptance criteria
+- Missing dependencies or ordering issues
+- Scope creep or out-of-scope items
+- Risk assessment
+
+Read the plan file from `.opencode/plans/`, analyze it, and return a review with:
+- ✅ Approved items
+- ⚠️ Concerns requiring clarification
+- ❌ Issues blocking approval
+- Suggested fixes
+
+Only approve if all critical items are addressed.

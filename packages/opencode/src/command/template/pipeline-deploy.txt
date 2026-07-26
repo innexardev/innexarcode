@@ -1,0 +1,18 @@
+# Deploy/Release Pipeline
+
+Prepare and verify production deployment.
+
+$ARGUMENTS
+
+Phases:
+1. Verify build → task to general agent
+2. Verify tests → task to qa agent
+3. Security check → task to security agent
+4. Verify Docker → task to general agent
+5. Verify CI → task to general agent
+6. Prepare release → task to release-manager agent
+7. Verify deployment → task to qa agent
+8. Set up monitoring → task to general agent
+9. Execute release → task to release-manager agent
+
+For each phase: call pipeline-advance before and after.

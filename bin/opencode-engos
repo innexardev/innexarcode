@@ -1,0 +1,59 @@
+#!/bin/bash
+# Engineering OS — opencode fork wrapper
+# Auto-watch + project picker support
+
+export PATH="$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ENGOS_DIR="/root/opencode-engos"
+BUN="$HOME/.bun/bin/bun"
+PROJ_FILE="/tmp/opencode-project"
+
+get_version() {
+  cd "$ENGOS_DIR" 2>/dev/null
+  local commit=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+  local date=$(git log -1 --format="%ci" 2>/dev/null | cut -d' ' -f1 || echo "")
+  echo "${commit}${date:+ ($date)}"
+}
+
+VERSION=$(get_version)
+
+case "$1" in
+  --help|-h)
+    echo "Engineering OS v$VERSION"
+    echo "Usage: opencode-engos [path|--watch|--update]"
+    exit 0 ;;
+  --version|-v) echo "Engineering OS $VERSION"; exit 0 ;;
+  --update)
+    cd "$ENGOS_DIR" && git pull origin dev 2>/dev/null
+    echo "$(git rev-parse --short HEAD)"
+    exit 0 ;;
+  --watch) WATCH="--watch"; shift ;;
+esac
+
+cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
+
+# If path argument, open that project
+if [ $# -ge 1 ] && [ -d "$1" ]; then
+  rm -f "$PROJ_FILE"
+  exec $BUN $WATCH run --conditions=browser ./src/index.ts "$@"
+elif [ $# -eq 1 ]; then
+  rm -f "$PROJ_FILE"
+  exec $BUN $WATCH run --conditions=browser ./src/index.ts run "$@"
+fi
+
+# No path: loop for project picker
+while true; do
+  rm -f "$PROJ_FILE"
+  $BUN $WATCH run --conditions=browser ./src/index.ts
+  
+  # Check if a project was selected
+  if [ -f "$PROJ_FILE" ]; then
+    SELECTED=$(cat "$PROJ_FILE")
+    rm -f "$PROJ_FILE"
+    if [ -d "$SELECTED" ]; then
+      cd "$ENGOS_DIR/packages/opencode" 2>/dev/null
+      exec $BUN $WATCH run --conditions=browser ./src/index.ts "$SELECTED"
+    fi
+  else
+    break
+  fi
+done
