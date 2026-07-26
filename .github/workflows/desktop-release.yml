@@ -27,32 +27,23 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun install --frozen-lockfile
 
-      - name: Build + Package Windows
+      - name: Build Electron
         working-directory: packages/desktop
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run build
-          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run package:win
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: opencode-windows
-          path: |
-            packages/desktop/dist/*.exe
-            packages/desktop/dist/*.7z
-            packages/desktop/dist/latest.yml
-
-      - name: Create portable package
+      - name: Package (dir only, no NSIS)
+        working-directory: packages/desktop
         run: |
-          cd packages/desktop/dist
-          tar -czf /tmp/opencode-desktop-win-portable.tar.gz win-unpacked/
+          export PATH="$HOME/.bun/bin:$PATH"
+          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} npx electron-builder --win dir --config electron-builder.config.ts
 
       - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
-          name: opencode-windows-portable
-          path: /tmp/opencode-desktop-win-portable.tar.gz
+          name: opencode-windows
+          path: packages/desktop/dist/win-unpacked/
 
   release:
     needs: build-windows
