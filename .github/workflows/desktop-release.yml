@@ -87,6 +87,28 @@ jobs:
           name: opencode-windows
           path: packages/desktop/dist/win-unpacked/
 
+      - name: Deploy to server
+        run: |
+          VERSION=$(jq -r '.version' packages/desktop/package.json)
+          DATE_TAG=$(date -u +"%Y%m%d_%H%M")
+          TAG="${VERSION}-dev-${DATE_TAG}"
+          FILENAME="innexarcode-dev-win-portable-${TAG}.tar.gz"
+          DOWNLOAD_DIR="packages/web/dist/downloads"
+
+          # Compactar
+          mkdir -p "$DOWNLOAD_DIR"
+          tar czf "/tmp/${FILENAME}" -C packages/desktop/dist/win-unpacked .
+
+          # Upload via SCP
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 173.212.248.236 >> ~/.ssh/known_hosts 2>/dev/null
+
+          scp -P 2222 "/tmp/${FILENAME}" root@173.212.248.236:/root/opencode-engos/packages/web/dist/downloads/
+          ssh -p 2222 root@173.212.248.236 "cp /root/opencode-engos/packages/web/dist/downloads/${FILENAME} /root/opencode-engos/packages/web/dist/downloads/innexarcode-dev-win-portable-latest.tar.gz && docker restart opencode-web"
+          echo "✅ Deploy automático concluído: ${FILENAME}"
+
   release:
     needs: build-windows
     runs-on: ${{ vars.SELF_HOSTED_RUNNER || 'ubuntu-latest' }}
