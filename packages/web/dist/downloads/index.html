@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Downloads — InnexarCode</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0b; color: #e4e4e7; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .container { max-width: 680px; padding: 2rem; text-align: center; }
+  h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+  p { color: #a1a1aa; margin-bottom: 2rem; line-height: 1.5; }
+  .cards { display: flex; gap: 1rem; flex-direction: column; }
+  .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 1.5rem; text-align: left; }
+  .card:hover { border-color: #3b82f6; }
+  .card .top { display: flex; align-items: center; justify-content: space-between; }
+  .card .info h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+  .card .info span { font-size: 0.8rem; color: #71717a; }
+  .btn { background: #3b82f6; color: #fff; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 600; flex-shrink: 0; display: inline-block; }
+  .btn:hover { background: #2563eb; }
+  .btn-soon { background: #52525b; pointer-events: none; }
+  .hint { font-size: 0.75rem; color: #52525b; margin-top: 0.75rem; }
+  .code { background: #222; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; }
+  .badge { display: inline-block; font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 99px; margin-left: 0.5rem; }
+  .badge-green { background: #1a3a1a; color: #6ee76e; }
+  .badge-gray { background: #2a2a2a; color: #888; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>⬇️ InnexarCode Desktop</h1>
+  <p>v1.18.5 dev-channel</p>
+  <div class="cards">
+    <div class="card">
+      <div class="top">
+        <div class="info">
+          <h3>🪟 Windows <span class="badge badge-green">pronto ✅</span></h3>
+          <span>Portátil · 178 MB · extraia e rode</span>
+        </div>
+        <a class="btn" href="/downloads/opencode-desktop-win-portable.tar.gz">Download</a>
+      </div>
+      <p class="hint">Extraia e execute <span class="code">OpenCode Dev.exe</span></p>
+    </div>
+    <div class="card">
+      <div class="top">
+        <div class="info">
+          <h3>🐧 Linux <span class="badge badge-gray">em breve</span></h3>
+          <span>AppImage + deb</span>
+        </div>
+        <a class="btn btn-soon">Aguardar</a>
+      </div>
+      <p class="hint">Build via GitHub Actions</p>
+    </div>
+    <div class="card">
+      <div class="top">
+        <div class="info">
+          <h3>🍎 macOS <span class="badge badge-gray">em breve</span></h3>
+          <span>DMG</span>
+        </div>
+        <a class="btn btn-soon">Aguardar</a>
+      </div>
+      <p class="hint">Requer billing no GitHub Actions</p>
+    </div>
+  </div>
+  <p class="note" style="margin-top:2rem;font-size:0.8rem;color:#52525b;">
+    <a href="https://github.com/viniciussvasques/opencode" style="color:#3b82f6;">GitHub</a>
+  </p>
+</div>
+</body>
+</html>
