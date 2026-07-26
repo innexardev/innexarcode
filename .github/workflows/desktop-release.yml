@@ -29,6 +29,8 @@ jobs:
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
           bun install --frozen-lockfile
+          # Força instalação dos binários nativos Windows do node-pty
+          bun install --cwd packages/desktop @lydell/node-pty-win32-x64
 
       - name: Build Electron
         working-directory: packages/desktop
@@ -47,15 +49,35 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           ASAR="packages/desktop/dist/win-unpacked/resources/app.asar"
           bunx @electron/asar extract "$ASAR" /tmp/asar-fix
+
+          # 1) Patch index.js para apontar pro binário Windows
           PTY_FILE="/tmp/asar-fix/node_modules/@lydell/node-pty/index.js"
           if [ -f "$PTY_FILE" ]; then
             sed -i 's/node-pty-linux-x64/node-pty-win32-x64/g' "$PTY_FILE"
             sed -i 's/node-pty-linux-arm64/node-pty-win32-arm64/g' "$PTY_FILE"
-            echo "✅ Patched: $(grep 'node-pty-win32' "$PTY_FILE" | head -1)"
+            echo "✅ Patched index.js"
+            grep 'node-pty-win32' "$PTY_FILE" | head -2
           else
             echo "❌ File not found at $PTY_FILE"
             find /tmp/asar-fix -path "*/node-pty/index.js" 2>/dev/null | head -5
           fi
+
+          # 2) Copiar binário .node Windows para o lugar certo
+          WIN_PTY="packages/desktop/node_modules/@lydell/node-pty-win32-x64"
+          ASAR_PTY_DIR="/tmp/asar-fix/node_modules/@lydell/node-pty"
+          if [ -d "$WIN_PTY" ]; then
+            mkdir -p "$ASAR_PTY_DIR/build/Release"
+            cp "$WIN_PTY/index.js" "$ASAR_PTY_DIR/build/Release/windowsTerminal.js" 2>/dev/null || true
+            find "$WIN_PTY" -name "*.node" -exec cp {} "$ASAR_PTY_DIR/build/Release/" \; 2>/dev/null || true
+            # Fallback: copiar diretório inteiro
+            cp -r "$WIN_PTY/build" "$ASAR_PTY_DIR/" 2>/dev/null || true
+            echo "✅ Copiado node-pty-win32-x64 nativos"
+            find "$ASAR_PTY_DIR/build" -name "*.node" 2>/dev/null | head -5
+          else
+            echo "⚠️ node-pty-win32-x64 não encontrado em $WIN_PTY"
+            find packages/desktop/node_modules/@lydell -type d -maxdepth 2 2>/dev/null | head -10
+          fi
+
           bunx @electron/asar pack /tmp/asar-fix "$ASAR"
           rm -rf /tmp/asar-fix
 
