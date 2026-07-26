@@ -17,3 +17,4 @@ bundle the assets as an application. The resulting app will be in `dist/`.
 ```bash
 bun run build && bun run package
 ```
+// trigger rebuild
