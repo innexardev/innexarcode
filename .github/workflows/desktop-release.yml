@@ -8,6 +8,9 @@ on:
       - "packages/desktop/**"
       - "packages/app/**"
 
+permissions:
+  contents: write
+
 env:
   OPENCODE_CHANNEL: dev
 
