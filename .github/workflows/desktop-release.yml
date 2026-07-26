@@ -44,16 +44,19 @@ jobs:
 
       - name: Patch node-pty for Windows
         run: |
-          # Fix process.platform being baked as "linux" by vite
           ASAR="packages/desktop/dist/win-unpacked/resources/app.asar"
-          PTY_INDEX="@lydell/node-pty/index.js"
-          
-          npx asar extract "$ASAR" /tmp/asar-fix
-          sed -i 's/node-pty-linux-x64/node-pty-win32-x64/g' "/tmp/asar-fix/$PTY_INDEX"
-          sed -i 's/node-pty-linux-arm64/node-pty-win32-arm64/g' "/tmp/asar-fix/$PTY_INDEX"
-          npx asar pack /tmp/asar-fix "$ASAR"
+          npx @electron/asar extract "$ASAR" /tmp/asar-fix
+          PTY_FILE="/tmp/asar-fix/node_modules/@lydell/node-pty/index.js"
+          if [ -f "$PTY_FILE" ]; then
+            sed -i 's/node-pty-linux-x64/node-pty-win32-x64/g' "$PTY_FILE"
+            sed -i 's/node-pty-linux-arm64/node-pty-win32-arm64/g' "$PTY_FILE"
+            echo "✅ Patched: $(grep 'node-pty-win32' "$PTY_FILE" | head -1)"
+          else
+            echo "❌ File not found at $PTY_FILE"
+            find /tmp/asar-fix -path "*/node-pty/index.js" 2>/dev/null | head -5
+          fi
+          npx @electron/asar pack /tmp/asar-fix "$ASAR"
           rm -rf /tmp/asar-fix
-          echo "✅ node-pty patched for Windows"
 
       - name: Upload portable
         uses: actions/upload-artifact@v4
