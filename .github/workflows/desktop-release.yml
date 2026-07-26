@@ -7,7 +7,6 @@ on:
     paths:
       - "packages/desktop/**"
       - "packages/app/**"
-      - "packages/core/**"
 
 env:
   OPENCODE_CHANNEL: dev
@@ -17,17 +16,24 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
+
+      - name: Setup Bun
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
+
       - name: Build + Package Windows
         working-directory: packages/desktop
         run: |
+          export PATH="$HOME/.bun/bin:$PATH"
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run build
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} bun run package:win
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -36,13 +42,19 @@ jobs:
             packages/desktop/dist/*.exe
             packages/desktop/dist/*.7z
             packages/desktop/dist/latest.yml
-      - name: Upload portable for website
+
+      - name: Create portable package
+        run: |
+          cd packages/desktop/dist
+          tar -czf /tmp/opencode-desktop-win-portable.tar.gz win-unpacked/
+
+      - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
           name: opencode-windows-portable
-          path: packages/desktop/dist/win-unpacked/
+          path: /tmp/opencode-desktop-win-portable.tar.gz
 
-  deploy:
+  release:
     needs: build-windows
     runs-on: [self-hosted, Linux, X64]
     if: github.ref == 'refs/heads/dev'
@@ -50,11 +62,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Create .tar.gz for website
-        run: |
-          cd artifacts/opencode-windows-portable
-          tar -czf ../opencode-desktop-win-portable.tar.gz .
-      - name: Deploy to dev.innexar.app
-        run: |
-          echo "Build complete. Artifacts ready:"
-          find artifacts -type f -name "*.exe" -o -name "*.tar.gz"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-${{ github.run_number }}
+          name: "Dev Build #${{ github.run_number }}"
+          files: |
+            artifacts/opencode-windows/*
+            artifacts/opencode-windows-portable/*
+          prerelease: true
+          generate_release_notes: false
