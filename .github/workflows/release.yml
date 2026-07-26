@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Build Electron
+        working-directory: packages/desktop
+        run: |
+          export OPENCODE_CHANNEL=prod
+          bun run prebuild
+          bun run build
+
+      - name: Package (Linux)
+        working-directory: packages/desktop
+        run: |
+          export OPENCODE_CHANNEL=prod
+          npx electron-builder --linux --config electron-builder.config.ts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            packages/desktop/dist/*.AppImage
+            packages/desktop/dist/*.deb
+            packages/desktop/dist/*.rpm
+            packages/desktop/dist/*.tar.gz
+            packages/desktop/dist/latest-linux.yml
+          generate_release_notes: true
