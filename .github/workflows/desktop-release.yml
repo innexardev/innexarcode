@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-linux:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
