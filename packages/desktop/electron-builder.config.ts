@@ -91,8 +91,8 @@ const getBase = (appId: string): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
+    name: "InnexarCode",
+    schemes: ["innexarcode"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -142,7 +142,7 @@ function getConfig() {
         ...base,
         appId,
         productName: "InnexarCode Beta",
-        protocols: { name: "InnexarCode Beta", schemes: ["opencode"] },
+        protocols: { name: "InnexarCode Beta", schemes: ["innexarcode"] },
         publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
         rpm: { packageName: "innexarcode-beta" },
       }
@@ -152,7 +152,7 @@ function getConfig() {
         ...base,
         appId,
         productName: "InnexarCode",
-        protocols: { name: "InnexarCode", schemes: ["opencode"] },
+        protocols: { name: "InnexarCode", schemes: ["innexarcode"] },
         publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
         deb: { fpm: [legacyDesktopEntryFpm] },
         rpm: { packageName: "innexarcode", fpm: [legacyDesktopEntryFpm] },

@@ -1,10 +1,10 @@
 [Desktop Entry]
-Name=OpenCode
-Exec=/opt/OpenCode/ai.opencode.desktop %U
+Name=InnexarCode
+Exec=/opt/InnexarCode/com.innexarcode.desktop %U
 Terminal=false
 Type=Application
-Icon=ai.opencode.desktop
-StartupWMClass=ai.opencode.desktop
+Icon=com.innexarcode.desktop
+StartupWMClass=com.innexarcode.desktop
 NoDisplay=true
-Comment=Open source AI coding agent
+Comment=AI coding agent
 Categories=Development;
