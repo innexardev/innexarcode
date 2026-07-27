@@ -1,0 +1,8 @@
+version: 1.18.5
+files:
+  - url: innexarcode-win-x64.exe
+    sha512: o0dl4zwKYqtIU7efiaqtqrtvbH6sDFmosRHltL/Oc8/dEMBrfF8YYggNIP8pz7IMHShP1y/wD7zPM1BFc20aSQ==
+    size: 129296642
+path: innexarcode-win-x64.exe
+sha512: o0dl4zwKYqtIU7efiaqtqrtvbH6sDFmosRHltL/Oc8/dEMBrfF8YYggNIP8pz7IMHShP1y/wD7zPM1BFc20aSQ==
+releaseDate: '2026-07-27T21:10:41.044Z'
