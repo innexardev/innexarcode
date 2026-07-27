@@ -178,7 +178,7 @@ export function createMainWindow(id: string = randomUUID()) {
     height: state.height,
     show: false,
     autoHideMenuBar: true,
-    title: "OpenCode",
+    title: "InnexarCode",
     icon: iconPath(),
     backgroundColor: backgroundColor ?? defaultBackgroundColor(),
     ...(process.platform === "darwin"
@@ -373,7 +373,7 @@ function wireWindowRecovery(win: BrowserWindow, name: string) {
 
     if (!isMainFrame || errorCode === -3) return
     void show(
-      "OpenCode failed to load",
+      "InnexarCode failed to load",
       [`Window: ${name}`, `URL: ${validatedURL}`, `Error: ${errorCode} ${errorDescription}`].join("\n"),
       false,
     )
@@ -389,7 +389,7 @@ function wireWindowRecovery(win: BrowserWindow, name: string) {
     sampler.stopAndFlush()
     writeLog("window", "renderer process gone", { window: name, currentURL: safeWindowURL(win), details }, "error")
     void show(
-      "OpenCode window terminated unexpectedly",
+      "InnexarCode window terminated unexpectedly",
       [`Window: ${name}`, `Reason: ${details.reason}`, `Code: ${details.exitCode ?? "<unknown>"}`].join("\n"),
       false,
     )
@@ -397,7 +397,7 @@ function wireWindowRecovery(win: BrowserWindow, name: string) {
   win.on("unresponsive", () => {
     writeLog("window", "renderer unresponsive", { window: name, currentURL: safeWindowURL(win) }, "error")
     sampler.start()
-    void show("OpenCode is not responding", "You can relaunch the app, open the logs, or keep waiting.", true)
+    void show("InnexarCode is not responding", "You can relaunch the app, open the logs, or keep waiting.", true)
   })
   win.on("responsive", () => {
     writeLog("window", "renderer responsive", { window: name, currentURL: safeWindowURL(win) }, "error")
