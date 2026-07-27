@@ -1,70 +1,63 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Downloads — InnexarCode</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0b; color: #e4e4e7; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .container { max-width: 680px; padding: 2rem; text-align: center; }
-  h1 { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-  p { color: #a1a1aa; margin-bottom: 2rem; line-height: 1.5; }
-  .cards { display: flex; gap: 1rem; flex-direction: column; }
-  .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 1.5rem; text-align: left; }
-  .card:hover { border-color: #3b82f6; }
-  .card .top { display: flex; align-items: center; justify-content: space-between; }
-  .card .info h3 { font-size: 1rem; margin-bottom: 0.25rem; }
-  .card .info span { font-size: 0.8rem; color: #71717a; }
-  .btn { background: #3b82f6; color: #fff; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 600; flex-shrink: 0; display: inline-block; }
-  .btn:hover { background: #2563eb; }
-  .btn-soon { background: #52525b; pointer-events: none; }
-  .hint { font-size: 0.75rem; color: #52525b; margin-top: 0.75rem; }
-  .code { background: #222; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; }
-  .badge { display: inline-block; font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 99px; margin-left: 0.5rem; }
-  .badge-green { background: #1a3a1a; color: #6ee76e; }
-  .badge-gray { background: #2a2a2a; color: #888; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+         background:#0a0a0b; color:#e4e4e7; display:flex; align-items:center;
+         justify-content:center; min-height:100vh; }
+  .container { max-width:800px; padding:2rem; text-align:center; }
+  h1 { font-size:2rem; margin-bottom:.5rem; }
+  .sub { color:#71717a; margin-bottom:2rem; }
+  .latest-card { background:linear-gradient(135deg,#1a1a2e,#16213e);
+         border:1px solid #818cf833; border-radius:1rem; padding:1.5rem;
+         margin-bottom:2rem; text-align:left; }
+  .latest-card h2 { font-size:1.1rem; margin-bottom:.5rem; color:#818cf8; }
+  .latest-card .meta { color:#71717a; font-size:.85rem; margin-bottom:1rem; }
+  .btn { display:inline-flex; align-items:center; gap:.5rem;
+         padding:.75rem 1.5rem; border-radius:.75rem; text-decoration:none;
+         font-weight:600; font-size:1rem;
+         background:linear-gradient(135deg,#818cf8,#6366f1);
+         color:#fff; box-shadow:0 4px 20px rgba(99,102,241,.35); }
+  .btn:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(99,102,241,.45); }
+  .tag { display:inline-block; font-size:.65rem; padding:2px 8px; border-radius:999px;
+         background:#1f1f23; color:#a1a1aa; font-weight:500; }
+  .latest-tag { background:#818cf8; color:#fff; }
+  .date { color:#71717a; font-size:.8rem; }
+  .footer { margin-top:2rem; color:#52525b; font-size:.8rem; }
+  .footer a { color:#818cf8; }
+  .warning { background:#27272a; border:1px solid #a16207; border-radius:.75rem;
+             padding:1rem; margin-bottom:1.5rem; font-size:.85rem; color:#fbbf24; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>⬇️ InnexarCode Desktop</h1>
-  <p>v1.18.5 dev-channel</p>
-  <div class="cards">
-    <div class="card">
-      <div class="top">
-        <div class="info">
-          <h3>🪟 Windows <span class="badge badge-green">pronto ✅</span></h3>
-          <span>Portátil · 178 MB · extraia e rode</span>
-        </div>
-        <a class="btn" href="/downloads/opencode-desktop-win-portable.tar.gz">Download</a>
-      </div>
-      <p class="hint">Extraia e execute <span class="code">OpenCode Dev.exe</span></p>
+  <h1>⬇️ InnexarCode</h1>
+  <p class="sub">Agente de IA open source para codificação</p>
+
+  <div class="latest-card">
+    <h2>📦 Última versão</h2>
+    <div class="meta">
+      <span class="tag latest-tag">1.18.5-dev</span>
+      &nbsp;•&nbsp; <span class="date">27/07/2026 22:01</span>
+      &nbsp;•&nbsp; <span>Windows (portátil)</span>
+      &nbsp;•&nbsp; <span>178 MB</span>
     </div>
-    <div class="card">
-      <div class="top">
-        <div class="info">
-          <h3>🐧 Linux <span class="badge badge-gray">em breve</span></h3>
-          <span>AppImage + deb</span>
-        </div>
-        <a class="btn btn-soon">Aguardar</a>
-      </div>
-      <p class="hint">Build via GitHub Actions</p>
-    </div>
-    <div class="card">
-      <div class="top">
-        <div class="info">
-          <h3>🍎 macOS <span class="badge badge-gray">em breve</span></h3>
-          <span>DMG</span>
-        </div>
-        <a class="btn btn-soon">Aguardar</a>
-      </div>
-      <p class="hint">Requer billing no GitHub Actions</p>
-    </div>
+    <a class="btn" href="/downloads/InnexarCode-20260727_2001.tar.gz">⬇ Baixar InnexarCode</a>
   </div>
-  <p class="note" style="margin-top:2rem;font-size:0.8rem;color:#52525b;">
-    <a href="https://github.com/viniciussvasques/opencode" style="color:#3b82f6;">GitHub</a>
-  </p>
+
+  <div class="warning">
+    ⚠️ Se já baixou antes, apague a pasta antiga "innexarcode-dev-win-portable-latest"
+    antes de extrair a nova versão.
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/innexardev/innexarcode">GitHub</a> ·
+    <a href="https://github.com/innexardev/innexarcode/releases">Releases</a>
+  </div>
 </div>
 </body>
 </html>
