@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lildax-windows-x64
-          path: packages/cli/dist/cli-win32-x64/bin/lildax.exe
+          path: packages/cli/dist/cli-windows-x64/bin/lildax.exe
           if-no-files-found: warn
 
       - name: Create GitHub Release
@@ -92,8 +92,8 @@ jobs:
           if [ -f packages/desktop/dist/latest.yml ]; then
             FILES+=(packages/desktop/dist/latest.yml)
           fi
-          if [ -f packages/cli/dist/cli-win32-x64/bin/lildax.exe ]; then
-            FILES+=(packages/cli/dist/cli-win32-x64/bin/lildax.exe)
+          if [ -f packages/cli/dist/cli-windows-x64/bin/lildax.exe ]; then
+            FILES+=(packages/cli/dist/cli-windows-x64/bin/lildax.exe)
           fi
           if [ ${#FILES[@]} -gt 0 ]; then
             gh release create "$TAG" "${FILES[@]}" \
