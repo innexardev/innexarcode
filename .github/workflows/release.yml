@@ -59,28 +59,42 @@ jobs:
     defaults:
       run:
         working-directory: packages/desktop
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Bun
-        uses: ./.github/actions/setup-bun
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
 
       - name: Build Electron
         run: |
-          bun run prebuild
+          export PATH="$HOME/.bun/bin:$PATH"
+          export OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }}
           bun run build
 
-      - name: Package (Windows - portable dir)
+      - name: Package (Windows NSIS)
         run: |
-          npx electron-builder --win dir --config electron-builder.config.ts
+          export PATH="$HOME/.bun/bin:$PATH"
+          export OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }}
+          npx electron-builder --win --config electron-builder.config.ts
 
-      - name: Upload Windows artifact
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: opencode-windows
-          path: packages/desktop/dist/win-unpacked/
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.yml
+            packages/desktop/dist/*.blockmap
 
   create-release:
     needs: [build-linux, build-windows]
@@ -97,8 +111,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: "OpenCode ${{ env.OPENCODE_CHANNEL }} ${{ github.ref_name }}"
+          name: "InnexarCode ${{ github.ref_name }}"
           files: |
             artifacts/**/*
           generate_release_notes: true
           prerelease: ${{ env.OPENCODE_CHANNEL != 'prod' }}
+          token: ${{ secrets.GH_TOKEN }}

@@ -39,7 +39,7 @@ const APP_IDS = {
 } as const
 
 const getBase = (appId: string): Configuration => ({
-  artifactName: "opencode-desktop-${os}-${arch}.${ext}",
+  artifactName: "innexarcode-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
@@ -56,6 +56,20 @@ const getBase = (appId: string): Configuration => ({
   asarUnpack: [
     "node_modules/@lydell/node-pty*/**/*",
   ],
+  win: {
+    icon: `resources/icons/icon.ico`,
+    signtoolOptions: {
+      sign: signWindows,
+    },
+    target: ["nsis"],
+    verifyUpdateCodeSignature: false,
+  },
+  nsis: {
+    oneClick: true,
+    perMachine: false,
+    installerIcon: `resources/icons/icon.ico`,
+    installerHeaderIcon: `resources/icons/icon.ico`,
+  },
   extraResources: [
     {
       from: "native/",
@@ -119,6 +133,7 @@ function getConfig() {
         ...base,
         appId,
         productName: "InnexarCode Dev",
+        publish: { provider: "github", owner: "innexardev", repo: "innexarcode", channel: "latest" },
         rpm: { packageName: "innexarcode-dev" },
       }
     }
