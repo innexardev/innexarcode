@@ -94,20 +94,6 @@ const getBase = (appId: string): Configuration => ({
     name: "InnexarCode",
     schemes: ["innexarcode"],
   },
-  win: {
-    icon: `resources/icons/icon.ico`,
-    signtoolOptions: {
-      sign: signWindows,
-    },
-    target: ["nsis"],
-    verifyUpdateCodeSignature: false,
-  },
-  nsis: {
-    oneClick: true,
-    perMachine: false,
-    installerIcon: `resources/icons/icon.ico`,
-    installerHeaderIcon: `resources/icons/icon.ico`,
-  },
   linux: {
     icon: `resources/icons`,
     category: "Development",
@@ -143,7 +129,7 @@ function getConfig() {
         appId,
         productName: "InnexarCode Beta",
         protocols: { name: "InnexarCode Beta", schemes: ["innexarcode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
+        publish: { provider: "github", owner: "innexardev", repo: "innexarcode", channel: "beta" },
         rpm: { packageName: "innexarcode-beta" },
       }
     }
@@ -153,7 +139,7 @@ function getConfig() {
         appId,
         productName: "InnexarCode",
         protocols: { name: "InnexarCode", schemes: ["innexarcode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
+        publish: { provider: "github", owner: "innexardev", repo: "innexarcode", channel: "latest" },
         deb: { fpm: [legacyDesktopEntryFpm] },
         rpm: { packageName: "innexarcode", fpm: [legacyDesktopEntryFpm] },
       }

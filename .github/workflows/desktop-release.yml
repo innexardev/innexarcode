@@ -45,8 +45,40 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} npx electron-builder --win dir --config electron-builder.config.ts
 
+      - name: Package (NSIS installer)
+        working-directory: packages/desktop
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} npx electron-builder --win nsis --config electron-builder.config.ts
+
       - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
-          name: opencode-windows
+          name: innexarcode-windows-portable
           path: packages/desktop/dist/win-unpacked/
+
+      - name: Upload NSIS installer + latest.yml
+        uses: actions/upload-artifact@v4
+        with:
+          name: innexarcode-windows-installer
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/latest.yml
+          if-no-files-found: warn
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="dev-$(date -u +%Y%m%d-%H%M%S)"
+          if ls packages/desktop/dist/*.exe 1>/dev/null 2>&1; then
+            FILES=(packages/desktop/dist/*.exe)
+            if [ -f packages/desktop/dist/latest.yml ]; then
+              FILES+=(packages/desktop/dist/latest.yml)
+            fi
+            gh release create "$TAG" "${FILES[@]}" \
+              --title "InnexarCode Dev $TAG" \
+              --notes "Build automático do branch dev." \
+              --prerelease
+          fi

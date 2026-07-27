@@ -27,7 +27,7 @@ for (const channel of channels) {
   })
 }
 
-test("keeps a hidden prod launcher for old Linux pins", async () => {
+test("keeps a hidden legacy launcher for old Linux pins", async () => {
   const previous = process.env.OPENCODE_CHANNEL
   process.env.OPENCODE_CHANNEL = "prod"
 
