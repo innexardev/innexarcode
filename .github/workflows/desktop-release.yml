@@ -51,6 +51,12 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           OPENCODE_CHANNEL=${{ env.OPENCODE_CHANNEL }} npx electron-builder --win nsis --publish never --config electron-builder.config.ts
 
+      - name: Build CLI
+        working-directory: packages/cli
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun run script/build.ts --single
+
       - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
@@ -66,17 +72,30 @@ jobs:
             packages/desktop/dist/latest.yml
           if-no-files-found: warn
 
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: lildax-windows-x64
+          path: packages/cli/dist/cli-win32-x64/bin/lildax.exe
+          if-no-files-found: warn
+
       - name: Create GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="dev-$(date -u +%Y%m%d-%H%M%S)"
+          FILES=()
           if ls packages/desktop/dist/*.exe 1>/dev/null 2>&1; then
-            FILES=(packages/desktop/dist/*.exe)
-            if [ -f packages/desktop/dist/latest.yml ]; then
-              FILES+=(packages/desktop/dist/latest.yml)
-            fi
+            FILES+=(packages/desktop/dist/*.exe)
+          fi
+          if [ -f packages/desktop/dist/latest.yml ]; then
+            FILES+=(packages/desktop/dist/latest.yml)
+          fi
+          if [ -f packages/cli/dist/cli-win32-x64/bin/lildax.exe ]; then
+            FILES+=(packages/cli/dist/cli-win32-x64/bin/lildax.exe)
+          fi
+          if [ ${#FILES[@]} -gt 0 ]; then
             gh release create "$TAG" "${FILES[@]}" \
               --title "InnexarCode Dev $TAG" \
               --notes "Build automático do branch dev." \
