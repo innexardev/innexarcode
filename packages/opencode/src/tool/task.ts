@@ -126,6 +126,12 @@ export const TaskTool = Tool.define(
             subagent_type: params.subagent_type,
           },
         })
+      } else {
+        yield* Effect.logWarning("bypassAgentCheck enabled — skipping permission check", {
+          agent: ctx.agent,
+          tool: id,
+          target: params.subagent_type,
+        })
       }
 
       const next = yield* agent.get(params.subagent_type)

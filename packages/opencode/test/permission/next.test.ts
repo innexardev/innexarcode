@@ -8,7 +8,7 @@ import { Permission } from "../../src/permission"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
 import { TestInstance, tmpdirScoped } from "../fixture/fixture"
-import { testEffect } from "../lib/effect"
+import { pollWithTimeout, testEffect } from "../lib/effect"
 import { MessageID, SessionID } from "../../src/session/schema"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
@@ -35,17 +35,10 @@ const rejectAll = (message?: string) =>
 const waitForPending = (count: number) =>
   Effect.gen(function* () {
     const permission = yield* Permission.Service
-    return yield* Effect.gen(function* () {
-      while (true) {
-        const list = yield* permission.list()
-        if (list.length === count) return list
-        yield* Effect.sleep("10 millis")
-      }
-    }).pipe(
-      Effect.timeoutOrElse({
-        duration: "1 second",
-        orElse: () => Effect.fail(new Error(`timed out waiting for ${count} pending permission request(s)`)),
-      }),
+    return yield* pollWithTimeout(
+      permission.list().pipe(Effect.map((list) => (list.length === count ? list : undefined))),
+      `timed out waiting for ${count} pending permission request(s)`,
+      "1 second",
     )
   })
 

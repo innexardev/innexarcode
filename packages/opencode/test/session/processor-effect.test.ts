@@ -103,16 +103,9 @@ function defer<T>() {
   return { promise, resolve }
 }
 
+import { pollWithTimeout } from "../lib/effect"
 const waitFor = <A>(check: Effect.Effect<A | undefined>, message: string) =>
-  Effect.gen(function* () {
-    const stop = Date.now() + 500
-    while (Date.now() < stop) {
-      const value = yield* check
-      if (value !== undefined) return value
-      yield* Effect.sleep("10 millis")
-    }
-    return yield* Effect.fail(new Error(message))
-  })
+  pollWithTimeout(check, message, "500 millis")
 
 const user = Effect.fn("TestSession.user")(function* (sessionID: SessionID, text: string) {
   const session = yield* Session.Service
@@ -349,12 +342,14 @@ it.live("session.processor effect tests preserve text start time", () =>
 
         yield* waitFor(
           MessageV2.parts(msg.id).pipe(
-            Effect.map((parts) => parts.find((part): part is SessionV1.TextPart => part.type === "text")),
+            Effect.map((parts) => {
+              const part = parts.find((part): part is SessionV1.TextPart => part.type === "text")
+              return part?.time?.start ? part : undefined
+            }),
             Effect.provideService(Database.Service, database),
           ),
-          "timed out waiting for text part",
+          "timed out waiting for text part with start time",
         )
-        yield* Effect.sleep("20 millis")
         gate.resolve()
 
         const exit = yield* Fiber.await(run)

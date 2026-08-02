@@ -401,15 +401,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     }
   }
 
-  const tools = Object.fromEntries(Array.from(toolNames).map((toolName) => [toolName, { toModelOutput }]))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tools: Record<string, any> = Object.fromEntries(
+    Array.from(toolNames).map((toolName) => [toolName, { toModelOutput }]),
+  )
 
   return yield* Effect.promise(() =>
     convertToModelMessages(
       result.filter((msg) => msg.parts.some((part) => part.type !== "step-start")),
-      {
-        //@ts-expect-error (convertToModelMessages expects a ToolSet but only actually needs tools[name]?.toModelOutput)
-        tools,
-      },
+      { tools },
     ),
   )
 })

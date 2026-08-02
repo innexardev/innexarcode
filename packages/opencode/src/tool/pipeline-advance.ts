@@ -5,21 +5,21 @@ import type { Phase } from "@opencode-ai/core/pipeline/state"
 
 const stateMachine = new PipelineStateMachine()
 
+const phaseLiterals = [...PHASE_ORDER] as const
+
 export const Parameters = Schema.Struct({
-  phase: Schema.Literal(
-    "discovery", "research", "planning", "architecture", "debate",
-    "implementation", "review", "qa", "security",
-    "self-critique", "question", "audit", "delivery",
-  ).annotate({ description: "The pipeline phase" }),
-  status: Schema.Literal("start", "complete", "fail").annotate({ description: "start | complete | fail" }),
+  phase: Schema.Literals(phaseLiterals).annotate({ description: "The pipeline phase" }),
+  status: Schema.Literals(["start", "complete", "fail"]).annotate({ description: "start | complete | fail" }),
   note: Schema.optional(Schema.String).annotate({ description: "Optional note" }),
 })
+
+type PipelineStatusResult = { ok: boolean; error?: string }
 
 type Metadata = {
   currentPhase: string
   phaseIndex: number
   totalPhases: number
-  nextPhase?: string
+  nextPhase?: Phase | null
   nextAgent?: string
   isComplete: boolean
   gatesRequired: string[]
@@ -33,7 +33,7 @@ export const PipelineAdvanceTool = Tool.define<typeof Parameters, Metadata, neve
         `Engineering OS Pipeline — phases MUST execute in order.`,
         ``,
         `Phases:`,
-        ...PHASE_ORDER.map((p: string, i: number) => `  ${i + 1}. ${PHASE_LABELS[p]}${PHASE_GATES[p] ? ` [gates: ${PHASE_GATES[p].join(", ")}]` : ""}`),
+        ...PHASE_ORDER.map((p: Phase, i: number) => `  ${i + 1}. ${PHASE_LABELS[p]}${PHASE_GATES[p] ? ` [gates: ${PHASE_GATES[p].join(", ")}]` : ""}`),
         ``,
         `Call pipeline-advance with status="start" to BEGIN a phase.`,
         `Call pipeline-advance with status="complete" when DONE.`,
@@ -45,8 +45,8 @@ export const PipelineAdvanceTool = Tool.define<typeof Parameters, Metadata, neve
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
-          const phase = params.phase as Phase
-          let result: { ok: boolean; error?: string }
+          const phase = params.phase
+          let result: PipelineStatusResult
 
           if (params.status === "start") {
             result = stateMachine.startPhase(phase)

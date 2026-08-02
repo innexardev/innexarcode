@@ -1,4 +1,4 @@
-import { MCP } from "@/mcp"
+import { MCP } from "@/mcp/mcp"
 import { Effect, Schema } from "effect"
 import { HttpApiBuilder, HttpApiError } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"

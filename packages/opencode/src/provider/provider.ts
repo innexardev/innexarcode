@@ -31,6 +31,13 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
+import {
+  ModelNotFoundError,
+  InitError,
+  NoProvidersError,
+  NoModelsError,
+} from "./errors"
+import type { DefaultModelError } from "./errors"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 
@@ -103,6 +110,9 @@ type BundledSDK = {
   chat?: (modelId: string) => LanguageModelV3
   responses?: (modelId: string) => LanguageModelV3
 }
+
+// Scoped credential store that doesn't leak to child processes via process.env
+const credentialStore = new Map<string, string>()
 
 const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>> = {
   "@ai-sdk/amazon-bedrock": () => import("@ai-sdk/amazon-bedrock").then((m) => m.createAmazonBedrock),
@@ -314,8 +324,10 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       const awsBearerToken = iife(() => {
         const envToken = process.env.AWS_BEARER_TOKEN_BEDROCK
         if (envToken) return envToken
+        const storedToken = credentialStore.get("AWS_BEARER_TOKEN_BEDROCK")
+        if (storedToken) return storedToken
         if (auth?.type === "api") {
-          process.env.AWS_BEARER_TOKEN_BEDROCK = auth.key
+          credentialStore.set("AWS_BEARER_TOKEN_BEDROCK", auth.key)
           return auth.key
         }
         return undefined
@@ -569,13 +581,13 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
     }),
     "sap-ai-core": Effect.fnUntraced(function* () {
       const auth = yield* dep.auth("sap-ai-core")
-      // TODO: Using process.env directly because Env.set only updates a shallow copy (not process.env),
-      // until the scope of the Env API is clarified (test only or runtime?)
       const envServiceKey = iife(() => {
         const envAICoreServiceKey = process.env.AICORE_SERVICE_KEY
         if (envAICoreServiceKey) return envAICoreServiceKey
+        const storedKey = credentialStore.get("AICORE_SERVICE_KEY")
+        if (storedKey) return storedKey
         if (auth?.type === "api") {
-          process.env.AICORE_SERVICE_KEY = auth.key
+          credentialStore.set("AICORE_SERVICE_KEY", auth.key)
           return auth.key
         }
         return undefined
@@ -1091,59 +1103,17 @@ export function defaultModelIDs<T extends { models: Record<string, { id: string 
   return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
 }
 
-export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundError>()("ProviderModelNotFoundError", {
-  providerID: ProviderV2.ID,
-  modelID: ModelV2.ID,
-  suggestions: Schema.optional(Schema.Array(Schema.String)),
-  cause: Schema.optional(Schema.Defect()),
-}) {
-  override get message() {
-    const suggestions = this.suggestions?.length ? ` Did you mean: ${this.suggestions.join(", ")}?` : ""
-    return `Model not found: ${this.providerID}/${this.modelID}.${suggestions}`
-  }
+export {
+  ModelNotFoundError,
+  InitError,
+  NoProvidersError,
+  NoModelsError,
+} from "./errors"
 
-  static isInstance(input: unknown): input is ModelNotFoundError {
-    return input instanceof ModelNotFoundError
-  }
-}
-
-export class InitError extends Schema.TaggedErrorClass<InitError>()("ProviderInitError", {
-  providerID: ProviderV2.ID,
-  cause: Schema.optional(Schema.Defect()),
-}) {
-  override get message() {
-    return `Failed to initialize provider: ${this.providerID}`
-  }
-
-  static isInstance(input: unknown): input is InitError {
-    return input instanceof InitError
-  }
-}
-
-export class NoProvidersError extends Schema.TaggedErrorClass<NoProvidersError>()("ProviderNoProvidersError", {}) {
-  override get message() {
-    return "No providers are available"
-  }
-
-  static isInstance(input: unknown): input is NoProvidersError {
-    return input instanceof NoProvidersError
-  }
-}
-
-export class NoModelsError extends Schema.TaggedErrorClass<NoModelsError>()("ProviderNoModelsError", {
-  providerID: ProviderV2.ID,
-}) {
-  override get message() {
-    return `No models are available for provider: ${this.providerID}`
-  }
-
-  static isInstance(input: unknown): input is NoModelsError {
-    return input instanceof NoModelsError
-  }
-}
-
-export type DefaultModelError = ModelNotFoundError | NoProvidersError | NoModelsError
-export type Error = ModelNotFoundError | InitError | NoProvidersError | NoModelsError
+export type {
+  DefaultModelError,
+  Error,
+} from "./errors"
 
 export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderV2.ID, Info>>
@@ -1365,14 +1335,12 @@ const layer = Layer.effect(
         function mergeProvider(providerID: ProviderV2.ID, provider: Partial<Info>) {
           const existing = providers[providerID]
           if (existing) {
-            // @ts-expect-error
-            providers[providerID] = mergeDeep(existing, provider)
+            providers[providerID] = mergeDeep(existing, provider) as Info
             return
           }
           const match = database[providerID]
           if (!match) return
-          // @ts-expect-error
-          providers[providerID] = mergeDeep(match, provider)
+          providers[providerID] = mergeDeep(match, provider) as Info
         }
 
         // load plugins first so config() hook runs before reading cfg.provider
@@ -1754,8 +1722,8 @@ const layer = Layer.effect(
 
           const res = await fetchFn(input, {
             ...opts,
-            // @ts-ignore see here: https://github.com/oven-sh/bun/issues/16682
-            timeout: false,
+            // https://github.com/oven-sh/bun/issues/16682 — timeout: false type mismatch
+            timeout: false as unknown as number,
           }).finally(() => headerTimeoutCtl?.clear())
 
           if (!chunkAbortCtl) return res

@@ -17,7 +17,7 @@ import { EventV2Bridge } from "../../src/event-v2-bridge"
 import { Watcher } from "@opencode-ai/core/filesystem/watcher"
 import { Git } from "../../src/git"
 import { Vcs } from "@/project/vcs"
-import { testEffect } from "../lib/effect"
+import { pollWithTimeout, testEffect } from "../lib/effect"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,11 +71,15 @@ const publishHeadChangeUntil = Effect.fn("VcsTest.publishHeadChangeUntil")(funct
   head: string,
 ) {
   const events = yield* EventV2Bridge.Service
-  for (let i = 0; i < 50; i++) {
-    yield* events.publish(Watcher.Event.Updated, { file: head, event: "change" })
-    if (yield* Deferred.isDone(pending)) return
-    yield* Effect.sleep("10 millis")
-  }
+  yield* pollWithTimeout(
+    Effect.gen(function* () {
+      yield* events.publish(Watcher.Event.Updated, { file: head, event: "change" })
+      if (yield* Deferred.isDone(pending)) return true as const
+      return undefined
+    }),
+    "timed out waiting for pending to resolve",
+    "500 millis",
+  ).pipe(Effect.ignore)
 })
 
 // ---------------------------------------------------------------------------

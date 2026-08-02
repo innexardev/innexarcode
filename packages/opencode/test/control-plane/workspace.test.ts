@@ -151,18 +151,13 @@ function expectExitContains(exit: Exit.Exit<unknown, unknown>, ...messages: stri
   for (const message of messages) expect(String(exit.cause)).toContain(message)
 }
 
-function eventuallyEffect(effect: Effect.Effect<void>, timeout = 1500) {
-  return Effect.gen(function* () {
-    const started = Date.now()
-    let last: unknown
-    while (Date.now() - started < timeout) {
-      const exit = yield* Effect.exit(effect)
-      if (exit._tag === "Success") return
-      last = exit.cause
-      yield* Effect.sleep("10 millis")
-    }
-    throw last ?? new Error("Timed out waiting for condition")
-  })
+import { pollWithTimeout } from "../lib/effect"
+function eventuallyEffect(effect: Effect.Effect<void, Error>, timeout = 1500) {
+  return pollWithTimeout(
+    Effect.exit(effect).pipe(Effect.map((exit) => (exit._tag === "Success" ? (undefined as void) : undefined))),
+    "Timed out waiting for condition",
+    `${timeout} millis`,
+  )
 }
 
 function recordedAdapter(input: {
@@ -1240,13 +1235,19 @@ describe("workspace sync state", () => {
                 }),
               )
               yield* workspace.startWorkspaceSyncing(instance.project.id)
-              yield* Effect.sleep("25 millis")
 
-              expect(
-                captured.events
-                  .filter((event) => event.workspace === info.id && event.payload.type === Workspace.Event.Status.type)
-                  .map((event) => event.payload.properties.status),
-              ).toEqual(["disconnected", "connecting", "connected"])
+              const statusEvents = yield* pollWithTimeout(
+                Effect.gen(function* () {
+                  const events = captured.events
+                    .filter(
+                      (event) => event.workspace === info.id && event.payload.type === Workspace.Event.Status.type,
+                    )
+                    .map((event) => event.payload.properties.status)
+                  return events.length >= 3 ? events : undefined
+                }),
+                "timed out waiting for workspace status events",
+              )
+              expect(statusEvents).toEqual(["disconnected", "connecting", "connected"])
               expect(calls.filter((call) => call.url.pathname === "/sync/global/event")).toHaveLength(1)
               expect(calls.filter((call) => call.url.pathname === "/sync/sync/history")).toHaveLength(1)
               expect(yield* workspace.isSyncing(info.id)).toBe(true)

@@ -15,7 +15,7 @@ import { BackgroundJob } from "@/background/job"
 import { Command } from "../../src/command"
 import { Config } from "@/config/config"
 import { LSP } from "@/lsp/lsp"
-import { MCP } from "../../src/mcp"
+import { MCP } from "../../src/mcp/mcp"
 import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider as ProviderSvc } from "@/provider/provider"
@@ -1313,7 +1313,14 @@ it.instance(
       const a = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
       yield* llm.wait(1)
       const b = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-      yield* Effect.sleep(50)
+
+      yield* pollWithTimeout(
+        Effect.gen(function* () {
+          return (yield* llm.calls) > 1 ? (true as const) : undefined
+        }),
+        "b should queue behind a (no second llm call)",
+        "100 millis",
+      ).pipe(Effect.exit)
 
       yield* prompt.cancel(chat.id)
       const [exitA, exitB] = yield* Effect.all([Fiber.await(a), Fiber.await(b)])
@@ -1686,7 +1693,13 @@ it.instance(
       yield* waitForBusy(chat.id)
 
       const loop = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-      yield* Effect.sleep(50)
+      yield* pollWithTimeout(
+        Effect.gen(function* () {
+          return (yield* llm.calls) > 0 ? (true as const) : undefined
+        }),
+        "expected loop queued behind shell",
+        "150 millis",
+      ).pipe(Effect.exit)
 
       expect(yield* llm.calls).toBe(0)
 
@@ -1724,7 +1737,13 @@ it.instance(
 
       const a = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
       const b = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-      yield* Effect.sleep(50)
+      yield* pollWithTimeout(
+        Effect.gen(function* () {
+          return (yield* llm.calls) > 0 ? (true as const) : undefined
+        }),
+        "expected loops queued behind shell",
+        "150 millis",
+      ).pipe(Effect.exit)
 
       expect(yield* llm.calls).toBe(0)
 
@@ -1837,11 +1856,13 @@ unixNoLLMServer(
           })
           .pipe(Effect.forkChild)
 
-        yield* Effect.gen(function* () {
-          while (!(yield* afs.existsSafe(ready))) {
-            yield* Effect.sleep(Duration.millis(10))
-          }
-        }).pipe(Effect.timeout(Duration.seconds(5)))
+        yield* pollWithTimeout(
+          Effect.gen(function* () {
+            return (yield* afs.existsSafe(ready)) ? (true as const) : undefined
+          }),
+          "timed out waiting for trap-ready file",
+          "5 seconds",
+        )
 
         yield* prompt.cancel(chat.id)
 
@@ -1926,7 +1947,9 @@ unixNoLLMServer(
       yield* waitForBusy(chat.id)
 
       const loop = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-      yield* Effect.sleep(50)
+      for (let i = 0; i < 50; i++) {
+        yield* Effect.yieldNow
+      }
 
       yield* prompt.cancel(chat.id)
 

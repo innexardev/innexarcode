@@ -130,8 +130,8 @@ export async function create(input: {
   const instance = input.instance
 
   const connection = createMessageConnection(
-    new StreamMessageReader(input.server.process.stdout as any),
-    new StreamMessageWriter(input.server.process.stdin as any),
+    new StreamMessageReader(input.server.process.stdout as unknown as NodeJS.ReadableStream),
+    new StreamMessageWriter(input.server.process.stdin as unknown as NodeJS.WritableStream),
   )
   input.server.process.stderr?.resume()
   // --- Connection state ---

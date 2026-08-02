@@ -21,4 +21,20 @@ describe("public event manifest", () => {
     expect(EventManifest.Durable.has("session.next.step.ended.1")).toBe(false)
     expect(EventManifest.Durable.get("session.next.step.ended.2")).toBe(SessionEvent.Step.Ended)
   })
+
+  test("contains core session events in Latest", () => {
+    expect(EventManifest.Latest.has("session.created")).toBe(true)
+    expect(EventManifest.Latest.has("session.updated")).toBe(true)
+    expect(EventManifest.Latest.has("session.idle")).toBe(true)
+  })
+
+  test("contains agent and tool events", () => {
+    expect(EventManifest.Latest.has("session.next.agent.switched")).toBe(true)
+    expect(EventManifest.Latest.has("session.next.tool.called")).toBe(true)
+    expect(EventManifest.Latest.has("session.next.tool.success")).toBe(true)
+  })
+
+  test("Definitions is frozen and cannot be mutated", () => {
+    expect(Object.isFrozen(EventManifest.Definitions)).toBe(true)
+  })
 })

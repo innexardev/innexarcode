@@ -47,7 +47,7 @@ while true; do
   
   # Check if a project was selected
   if [ -f "$PROJ_FILE" ]; then
-    SELECTED=$(cat "$PROJ_FILE")
+    SELECTED=$(cat "$PROJ_FILE" 2>/dev/null | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('directory',''))" 2>/dev/null || echo "")
     rm -f "$PROJ_FILE"
     if [ -d "$SELECTED" ]; then
       cd "$ENGOS_DIR/packages/opencode" 2>/dev/null

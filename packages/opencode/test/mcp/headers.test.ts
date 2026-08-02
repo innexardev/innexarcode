@@ -5,7 +5,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Effect } from "effect"
 import { testEffect } from "../lib/effect"
-import { MCP } from "../../src/mcp/index"
+import { MCP } from "../../src/mcp/mcp"
 
 const it = testEffect(LayerNode.compile(MCP.node))
 

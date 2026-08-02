@@ -78,7 +78,7 @@ export function DirectoryPicker(props: { width: number }) {
     try {
       // Save selected path and exit — wrapper will restart in this directory
       const { writeFileSync } = require("fs")
-      writeFileSync("/tmp/opencode-project", path, "utf8")
+      writeFileSync("/tmp/opencode-project", JSON.stringify({ directory: path }), "utf-8")
     } catch {}
     // Exit the TUI — wrapper will pick up the path
     if (typeof window !== "undefined") {

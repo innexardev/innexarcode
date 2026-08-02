@@ -654,7 +654,7 @@ it.instance(
       const fiber = yield* Effect.gen(function* () {
         for (let i = 0; i < 10; i++) {
           yield* write(`${tmp.path}/concurrent${i}.txt`, `concurrent${i}`)
-          yield* Effect.sleep("1 millis")
+          yield* Effect.yieldNow
         }
       }).pipe(Effect.forkScoped)
       const patch = yield* snapshot.patch(before)

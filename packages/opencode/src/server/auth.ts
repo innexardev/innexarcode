@@ -1,5 +1,6 @@
 export * as ServerAuth from "./auth"
 
+import { timingSafeEqual } from "node:crypto"
 import { ConfigService } from "@/effect/config-service"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Config as EffectConfig, Context, Option, Redacted } from "effect"
@@ -25,11 +26,18 @@ export function required(config: Info) {
   return Option.isSome(config.password) && config.password.value !== ""
 }
 
+function safeEqual(a: string, b: string) {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  const maxLen = Math.max(bufA.length, bufB.length)
+  return timingSafeEqual(Buffer.concat([bufA], maxLen), Buffer.concat([bufB], maxLen))
+}
+
 export function authorized(credentials: DecodedCredentials, config: Info) {
   return (
     Option.isSome(config.password) &&
     credentials.username === config.username &&
-    Redacted.value(credentials.password) === config.password.value
+    safeEqual(Redacted.value(credentials.password), config.password.value)
   )
 }
 

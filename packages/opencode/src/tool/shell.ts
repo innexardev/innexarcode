@@ -308,6 +308,17 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
     detached: process.platform !== "win32",
   })
 }
+const DANGEROUS_PATTERNS = [
+  /\$\(/,
+  /`/,
+  /\$\{/,
+  /\|\s*(curl|wget|nc)\b/,
+]
+
+function hasDangerousPatterns(cmd: string): boolean {
+  return DANGEROUS_PATTERNS.some((p) => p.test(cmd))
+}
+
 const parser = lazy(async () => {
   const { Parser } = await import("web-tree-sitter")
   const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string, {
@@ -627,6 +638,10 @@ export const ShellTool = Tool.define(
                   yield* ask(ctx, scan, params)
                 }),
               )
+
+              if (hasDangerousPatterns(params.command)) {
+                yield* Effect.logWarning("shell command contains dangerous patterns", { command: params.command })
+              }
 
               return yield* run(
                 {

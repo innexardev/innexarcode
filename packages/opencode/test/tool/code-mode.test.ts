@@ -3,7 +3,7 @@ import { CODE_MODE_TOOL, CodeModeTool, Parameters, describeCatalog } from "@/too
 import type { Tool as MCPToolDef } from "@modelcontextprotocol/sdk/types.js"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Agent } from "@/agent/agent"
-import { MCP } from "@/mcp"
+import { MCP } from "@/mcp/mcp"
 import { Permission } from "@/permission"
 import { Plugin } from "@/plugin"
 import { Session } from "@/session/session"

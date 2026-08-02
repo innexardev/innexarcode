@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, createSignal, Show, onMount } from "solid-js"
+import { createMemo, createSignal, Show, onMount, For } from "solid-js"
 import { useProject } from "../context/project"
 import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
@@ -13,6 +13,26 @@ import { WorkspaceLabel } from "../component/workspace-label"
 import { useTuiPaths } from "../context/runtime"
 import { FileExplorer, buildFileTree } from "./explorer"
 import type { FileTreeItem } from "./explorer"
+
+type GitStatus = "modified" | "added" | "deleted" | "renamed" | "untracked" | "clean"
+
+const GIT_ICON: Record<GitStatus, string> = {
+  modified: "M",
+  added: "A",
+  deleted: "D",
+  renamed: "R",
+  untracked: "?",
+  clean: "",
+}
+
+const GIT_COLOR: Record<GitStatus, string> = {
+  modified: "amber",
+  added: "green",
+  deleted: "red",
+  renamed: "blue",
+  untracked: "dim",
+  clean: "",
+}
 
 export function LeftPanel(props: { sessionID: string; width: number }) {
   const pluginRuntime = usePluginRuntime()
@@ -33,6 +53,7 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
   const [filesOpen, setFilesOpen] = createSignal(true)
   const [fileTree, setFileTree] = createSignal<FileTreeItem[]>([])
   const [filesLoading, setFilesLoading] = createSignal(true)
+  const [gitStatus, setGitStatus] = createSignal<Map<string, GitStatus>>(new Map())
 
   async function loadFiles() {
     const dir = project.instance.directory()
@@ -42,7 +63,6 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
     }
     setFilesLoading(true)
     try {
-      // Get all project files via find API
       const resp = await sdk.client.find.files({
         query: "",
         type: "file" as const,
@@ -58,18 +78,24 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
           .filter((p: string) => !p.startsWith(".") && !p.includes("node_modules"))
         setFileTree(buildFileTree(relPaths))
       } else {
-        // Fallback: list root dir files
         const list = await sdk.client.file.list({ path: dir, throwOnError: false } as any)
         if (list?.data) {
           const names = list.data.map((e: any) => e.name)
           setFileTree(buildFileTree(names))
         }
       }
+      await loadGitStatus(dir)
     } catch {}
     setFilesLoading(false)
   }
 
-  // Handle file selection: attach to chat
+  async function loadGitStatus(dir: string) {
+    try {
+      const status = await gitStatusForDir(dir)
+      setGitStatus(status)
+    } catch {}
+  }
+
   function handleFileSelect(path: string) {
     const dir = project.instance.directory()
     if (!dir) return
@@ -164,6 +190,11 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
                 <Show when={!filesLoading() && fileTree().length > 0}>
                   <FileExplorer files={fileTree()} width={props.width - 4} onFileSelect={handleFileSelect} />
                 </Show>
+                <Show when={!filesLoading() && gitStatus().size > 0}>
+                  <text fg={theme.textMuted}>
+                    Git: {countStatus(gitStatus(), "modified")}M {countStatus(gitStatus(), "added")}A {countStatus(gitStatus(), "deleted")}D {countStatus(gitStatus(), "untracked")}?
+                  </text>
+                </Show>
                 <Show when={!filesLoading() && fileTree().length === 0}>
                   <text fg={theme.textMuted}>No files found</text>
                 </Show>
@@ -184,4 +215,48 @@ export function LeftPanel(props: { sessionID: string; width: number }) {
       </box>
     </Show>
   )
+}
+
+function FilesWithGit(props: {
+  files: FileTreeItem[]
+  gitStatus: Map<string, GitStatus>
+  width: number
+  onFileSelect: (path: string) => void
+}) {
+  return (
+    <FileExplorer
+      files={props.files}
+      width={props.width}
+      onFileSelect={props.onFileSelect}
+    />
+  )
+}
+
+function countStatus(map: Map<string, GitStatus>, status: GitStatus): number {
+  let count = 0
+  for (const v of map.values()) { if (v === status) count++ }
+  return count
+}
+
+async function gitStatusForDir(dir: string): Promise<Map<string, GitStatus>> {
+  const result = new Map<string, GitStatus>()
+  try {
+    const proc = Bun.spawnSync(["git", "-C", dir, "status", "--porcelain"], {})
+    const output = proc.stdout.toString().trim()
+    if (!output) return result
+    for (const line of output.split("\n")) {
+      if (line.length < 3) continue
+      const status = line.slice(0, 2).trim()
+      const file = line.slice(3)
+      let gs: GitStatus
+      if (status === "M" || status === " M" || status === "MM") gs = "modified"
+      else if (status === "A") gs = "added"
+      else if (status === "D") gs = "deleted"
+      else if (status === "R") gs = "renamed"
+      else if (status === "??") gs = "untracked"
+      else continue
+      result.set(file, gs)
+    }
+  } catch {}
+  return result
 }

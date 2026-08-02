@@ -328,6 +328,25 @@ export function Session() {
   })
 
   let lastSwitch: string | undefined = undefined
+
+  // Agente recomendado por fase do pipeline (espelha PHASE_AGENT do core)
+  const PHASE_TO_AGENT: Record<string, string> = {
+    discovery: "explore", research: "general", planning: "planner",
+    architecture: "architect", debate: "general", implementation: "general",
+    review: "code-reviewer", qa: "qa", security: "security",
+    "self-critique": "auditor", question: "questionador",
+    audit: "auditor", delivery: "release-manager",
+  }
+
+  // Rótulo de cada fase para o TODO
+  const PHASE_TITLE: Record<string, string> = {
+    discovery: "Discovery", research: "Research", planning: "Planning",
+    architecture: "Architecture", debate: "Debate", implementation: "Implementation",
+    review: "Review", qa: "QA", security: "Security",
+    "self-critique": "Self-Critique", question: "Question",
+    audit: "Audit", delivery: "Delivery",
+  }
+
   event.on("message.part.updated", (evt) => {
     const part = evt.properties.part
     if (part.type !== "tool") return
@@ -341,6 +360,36 @@ export function Session() {
     } else if (part.tool === "plan_enter") {
       local.agent.set("plan")
       lastSwitch = part.id
+    } else if (part.tool === "pipeline-advance") {
+      // Pipeline avançou: extrai a fase do output/input e troca o agente
+      let phase: string | undefined
+      let action: string | undefined
+      try {
+        const input = (part.state as { input?: Record<string, unknown> })?.input
+        if (input && typeof input.phase === "string") {
+          phase = input.phase
+          action = typeof input.status === "string" ? input.status : undefined
+        }
+      } catch {}
+      if (!phase) {
+        try {
+          const output = (part.state as { output?: string })?.output
+          if (output) {
+            const data = JSON.parse(output)
+            phase = typeof data.phase === "string" ? data.phase : data.currentPhase
+            action = typeof data.status === "string" ? data.status : undefined
+          }
+        } catch {}
+      }
+      if (phase) {
+        const agent = PHASE_TO_AGENT[phase]
+        if (agent) {
+          local.agent.set(agent)
+          lastSwitch = part.id
+        }
+        // A fase é detectada pelo cockpit via tool calls (pipelinePhaseFromTools)
+        // e exibida no painel. O agente agora muda automaticamente conforme avança.
+      }
     }
   })
 

@@ -11,4 +11,17 @@ describe("decodeDataUrl", () => {
   test("decodes plain data URLs", () => {
     expect(decodeDataUrl("data:text/plain,hello%20world")).toBe("hello world")
   })
+
+  test("returns empty string when no comma separator", () => {
+    expect(decodeDataUrl("data:text/plain")).toBe("")
+  })
+
+  test("handles empty string input", () => {
+    expect(decodeDataUrl("")).toBe("")
+  })
+
+  test("decodes base64 without explicit charset", () => {
+    const url = `data:;base64,${Buffer.from("hello").toString("base64")}`
+    expect(decodeDataUrl(url)).toBe("hello")
+  })
 })

@@ -32,7 +32,7 @@ import { SessionPrompt } from "@/session/prompt"
 import { Instruction } from "@/session/instruction"
 import { LLM } from "@/session/llm"
 import { LSP } from "@/lsp/lsp"
-import { MCP } from "@/mcp"
+import { MCP } from "@/mcp/mcp"
 import { McpAuth } from "@/mcp/auth"
 import { Command } from "@/command"
 import { Truncate } from "@/tool/truncate"
@@ -57,56 +57,80 @@ import { SessionProjector } from "@opencode-ai/core/session/projector"
 
 export const AppLayer = AppNodeBuilderV1.build(
   LayerNode.group([
-    Npm.node,
-    FSUtil.node,
-    Database.node,
-    Auth.node,
-    Account.node,
-    Config.node,
-    Git.node,
-    Storage.node,
-    Snapshot.node,
-    Plugin.node,
-    ModelsDev.node,
-    Provider.node,
-    ProviderAuth.node,
-    Agent.node,
-    Skill.node,
-    Discovery.node,
-    Question.node,
-    Permission.node,
-    Todo.node,
-    Session.node,
-    SessionProjector.node,
-    SessionStatus.node,
-    BackgroundJob.node,
-    RuntimeFlags.node,
-    EventV2Bridge.node,
-    SessionRunState.node,
-    SessionProcessor.node,
-    SessionCompaction.node,
-    SessionRevert.node,
-    SessionSummary.node,
-    SessionPrompt.node,
-    Instruction.node,
-    LLM.node,
-    LSP.node,
-    MCP.node,
-    McpAuth.node,
-    Command.node,
-    Truncate.node,
-    ToolRegistry.node,
-    Format.node,
-    InstanceStore.node,
-    Project.node,
-    Vcs.node,
-    Workspace.node,
-    Worktree.node,
-    Installation.node,
-    ShareNext.node,
-    SessionShare.node,
+    // Infrastructure / Data
+    LayerNode.group([
+      Database.node,
+      Storage.node,
+      FSUtil.node,
+      Npm.node,
+      Ripgrep.node,
+      ModelsDev.node,
+    ]),
+
+    // Config / Auth
+    LayerNode.group([
+      Auth.node,
+      Account.node,
+      Config.node,
+      Git.node,
+      Provider.node,
+      ProviderAuth.node,
+      Permission.node,
+    ]),
+
+    // Session / Tools
+    LayerNode.group([
+      Session.node,
+      SessionProjector.node,
+      SessionStatus.node,
+      SessionRunState.node,
+      SessionProcessor.node,
+      SessionCompaction.node,
+      SessionRevert.node,
+      SessionSummary.node,
+      SessionPrompt.node,
+      Instruction.node,
+      LLM.node,
+      ToolRegistry.node,
+      Truncate.node,
+      Command.node,
+      Format.node,
+      Todo.node,
+    ]),
+
+    // Integrations
+    LayerNode.group([
+      MCP.node,
+      McpAuth.node,
+      Plugin.node,
+      Snapshot.node,
+      LSP.node,
+    ]),
+
+    // Project / Workspace
+    LayerNode.group([
+      InstanceStore.node,
+      Project.node,
+      Vcs.node,
+      Workspace.node,
+      Worktree.node,
+    ]),
+
+    // App / Core Services
+    LayerNode.group([
+      Agent.node,
+      Skill.node,
+      Discovery.node,
+      Question.node,
+      BackgroundJob.node,
+      RuntimeFlags.node,
+      EventV2Bridge.node,
+      Installation.node,
+      ShareNext.node,
+      SessionShare.node,
+    ]),
   ]),
-).pipe(Layer.provideMerge(AppNodeBuilderV1.build(Ripgrep.node)), Layer.provideMerge(Observability.layer))
+).pipe(Layer.provideMerge(Observability.layer))
 
 const rt = ManagedRuntime.make(AppLayer, { memoMap })
 type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">

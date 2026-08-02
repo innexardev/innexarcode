@@ -8,7 +8,7 @@ import { MessageV2 } from "../../src/session/message-v2"
 import { MessageID, PartID, type SessionID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { provideInstance, tmpdirScoped } from "../fixture/fixture"
-import { testEffect } from "../lib/effect"
+import { awaitWithTimeout, testEffect } from "../lib/effect"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { GlobalBus } from "@/bus/global"
@@ -37,10 +37,7 @@ const it = testEffect(
 )
 
 const awaitDeferred = <T>(deferred: Deferred.Deferred<T>, message: string) =>
-  Effect.race(
-    Deferred.await(deferred),
-    Effect.sleep("2 seconds").pipe(Effect.flatMap(() => Effect.fail(new Error(message)))),
-  )
+  awaitWithTimeout(Deferred.await(deferred), message, "2 seconds")
 
 const remove = (id: SessionID) => SessionNs.use.remove(id)
 

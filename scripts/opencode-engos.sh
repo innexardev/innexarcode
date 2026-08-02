@@ -42,8 +42,13 @@ while true; do
 
   # Check if TUI wrote a new project path before exiting
   if [ -f "$PROJ_FILE" ]; then
-    NEW_DIR=$(cat "$PROJ_FILE" 2>/dev/null)
+    IPC_JSON=$(cat "$PROJ_FILE" 2>/dev/null || echo "{}")
     rm -f "$PROJ_FILE"
+    NEW_DIR=$(echo "$IPC_JSON" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('directory',''))" 2>/dev/null || echo "")
+    SESSION_ID=$(echo "$IPC_JSON" | python3 -c "import sys,json; d=json.loads(sys.stdin.read()); print(d.get('sessionID','') or '')" 2>/dev/null || echo "")
+    if [ -n "$SESSION_ID" ]; then
+      export OPENCODE_ROUTE="{\"type\":\"session\",\"sessionID\":\"$SESSION_ID\"}"
+    fi
     if [ -n "$NEW_DIR" ] && [ -d "$NEW_DIR" ] && [ "$NEW_DIR" != "/browse" ]; then
       PROJECT_DIR="$NEW_DIR"
       continue

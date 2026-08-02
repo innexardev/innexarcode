@@ -1,5 +1,5 @@
 import { AccountID, OrgID } from "@/account/schema"
-import { MCP } from "@/mcp"
+import { MCP } from "@/mcp/mcp"
 
 import { Session } from "@/session/session"
 import { SessionID } from "@/session/schema"

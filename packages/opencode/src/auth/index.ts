@@ -57,9 +57,9 @@ const layer = Layer.effect(
 
     const all = Effect.fn("Auth.all")(function* () {
       if (process.env.OPENCODE_AUTH_CONTENT) {
-        try {
-          return JSON.parse(process.env.OPENCODE_AUTH_CONTENT)
-        } catch (err) {}
+        yield* Effect.logWarning(
+          "OPENCODE_AUTH_CONTENT env var is deprecated and ignored; reading from auth file instead",
+        )
       }
 
       const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>

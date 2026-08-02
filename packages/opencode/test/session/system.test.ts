@@ -7,7 +7,7 @@ import { Skill } from "../../src/skill"
 import { Permission } from "../../src/permission"
 import type { Provider } from "../../src/provider/provider"
 import { SystemPrompt } from "../../src/session/system"
-import { MCP } from "../../src/mcp"
+import { MCP } from "../../src/mcp/mcp"
 import { testEffect } from "../lib/effect"
 
 const skills: Skill.Info[] = [

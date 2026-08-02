@@ -24,11 +24,11 @@ import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Database } from "@opencode-ai/core/database/database"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
 import { provideTmpdirServer } from "../fixture/fixture"
-import { testEffect } from "../lib/effect"
+import { testEffect, pollWithTimeout } from "../lib/effect"
 import { TestLLMServer } from "../lib/llm-server"
 
 import { LSP } from "@/lsp/lsp"
-import { MCP } from "../../src/mcp"
+import { MCP } from "../../src/mcp/mcp"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 
@@ -176,12 +176,13 @@ it.live("tool execution produces non-empty session diff (snapshot race)", () =>
       if (!user) throw new Error("Expected user message")
 
       // Poll for the turn diff — summarize() is fire-and-forget.
-      let diff: Array<{ file?: string }> = []
-      for (let i = 0; i < 50; i++) {
-        diff = yield* summary.diff({ sessionID: session.id, messageID: user.info.id })
-        if (diff.length > 0) break
-        yield* Effect.sleep("100 millis")
-      }
+      const diff = yield* pollWithTimeout(
+        summary.diff({ sessionID: session.id, messageID: user.info.id }).pipe(
+          Effect.map((d) => (d.length > 0 ? d : undefined)),
+        ),
+        "timed out waiting for turn diff",
+        "5 seconds",
+      )
       expect(diff.length).toBeGreaterThan(0)
     }),
     { git: true, config: providerCfg },

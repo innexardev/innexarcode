@@ -1,15 +1,28 @@
-# js
+# opencode
 
-To install dependencies:
+AI-powered development tool with a terminal UI, CLI, server, desktop app, and web interface.
+
+## Quick start
 
 ```bash
 bun install
+bun dev
 ```
 
-To run:
+## Architecture
 
-```bash
-bun run index.ts
-```
+- **Effect TS** — typed, composable effects layer
+- **SolidJS** — reactive terminal UI
+- **Drizzle ORM** — typed SQLite database layer
 
-This project was created using `bun init` in bun v1.2.12. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+## Configuration
+
+Config files (`opencode.json` / `opencode.jsonc`) support:
+- Agent and model definitions
+- MCP server registration
+- Plugin management
+- Custom commands and variables
+
+## Docs
+
+https://opencode.ai

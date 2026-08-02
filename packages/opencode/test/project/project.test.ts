@@ -95,14 +95,16 @@ const iconDiscoveryIt = testEffect(
   AppNodeBuilder.build(projectTestNode, [[RuntimeFlags.node, RuntimeFlags.layer({ experimentalIconDiscovery: true })]]),
 )
 
-function waitForProjectIcon(id: ProjectV2.ID, attempts = 50): Effect.Effect<Project.Info, never, Project.Service> {
+import { pollWithTimeout } from "../lib/effect"
+
+function waitForProjectIcon(id: ProjectV2.ID): Effect.Effect<Project.Info, Error, Project.Service> {
   return Effect.gen(function* () {
     const project = yield* Project.Service
-    const info = yield* project.get(id)
-    if (info?.icon?.url) return info
-    if (attempts <= 0) throw new Error(`Project icon was not discovered: ${id}`)
-    yield* Effect.sleep("10 millis")
-    return yield* waitForProjectIcon(id, attempts - 1)
+    return yield* pollWithTimeout(
+      project.get(id).pipe(Effect.map((info) => (info?.icon?.url ? info : undefined))),
+      `Project icon was not discovered: ${id}`,
+      "5 seconds",
+    )
   })
 }
 

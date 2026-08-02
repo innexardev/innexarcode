@@ -8,7 +8,7 @@ import { Config } from "../../src/config/config"
 import { EventV2Bridge } from "../../src/event-v2-bridge"
 import { McpAuth } from "../../src/mcp/auth"
 import { McpBrowser } from "../../src/mcp/browser"
-import { MCP } from "../../src/mcp/index"
+import { MCP } from "../../src/mcp/mcp"
 import { McpOAuthCallback } from "../../src/mcp/oauth-callback"
 import { awaitWithTimeout, testEffect } from "../lib/effect"
 

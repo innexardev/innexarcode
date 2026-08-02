@@ -56,4 +56,26 @@ describe("util.module", () => {
     await using tmp = await tmpdir()
     expect(Module.resolve("missing-package", tmp.path)).toBeUndefined()
   })
+
+  test("resolves package with no main field using index.js fallback", async () => {
+    await using tmp = await tmpdir()
+    const root = path.join(tmp.path, "proj")
+    const dir = path.join(root, "node_modules/some-lib")
+    const file = path.join(dir, "index.js")
+    await Filesystem.write(file, "export {}\n")
+    await Filesystem.writeJson(path.join(dir, "package.json"), { name: "some-lib" })
+
+    expect(Module.resolve("some-lib", root)).toBe(file)
+  })
+
+  test("resolves scoped packages", async () => {
+    await using tmp = await tmpdir()
+    const root = path.join(tmp.path, "proj")
+    const dir = path.join(root, "node_modules/@scope/pkg")
+    const file = path.join(dir, "index.js")
+    await Filesystem.write(file, "export {}\n")
+    await Filesystem.writeJson(path.join(dir, "package.json"), { name: "@scope/pkg", main: "index.js" })
+
+    expect(Module.resolve("@scope/pkg", root)).toBe(file)
+  })
 })

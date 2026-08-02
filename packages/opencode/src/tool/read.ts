@@ -247,6 +247,13 @@ export const ReadTool = Tool.define<
         ),
       )
 
+      if (ctx.extra?.["bypassCwdCheck"]) {
+        yield* Effect.logWarning("bypassCwdCheck enabled — skipping external directory check", {
+          agent: ctx.agent,
+          tool: "read",
+          target: filepath,
+        })
+      }
       yield* assertExternalDirectoryEffect(ctx, filepath, {
         bypass: Boolean(ctx.extra?.["bypassCwdCheck"]),
         kind: stat?.type === "Directory" ? "directory" : "file",

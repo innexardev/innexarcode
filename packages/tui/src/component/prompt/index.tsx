@@ -367,6 +367,30 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
+        title: "Anexar imagem/arquivo",
+        name: "prompt.attach",
+        category: "Prompt",
+        run: () => {
+          const { FilePicker } = require("../file-picker")
+          dialog.replace(() => (
+            <FilePicker
+              onAttach={(file: { filename?: string; filepath?: string; content: string; mime: string; text?: string }) => {
+                if (file.text !== undefined) {
+                  pasteText(file.text, `[SVG: ${file.filename ?? "image"}]`)
+                } else {
+                  return pasteAttachment({
+                    filename: file.filename,
+                    filepath: file.filepath,
+                    mime: file.mime,
+                    content: file.content,
+                  })
+                }
+              }}
+            />
+          ))
+        },
+      },
+      {
         title: "Paste",
         name: "prompt.paste",
         category: "Prompt",

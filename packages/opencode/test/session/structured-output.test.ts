@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Exit, Schema } from "effect"
 import { MessageV2 } from "../../src/session/message-v2"
-import { SessionPrompt } from "../../src/session/prompt"
+import { createStructuredOutputTool } from "../../src/session/prompt/structured-output"
 import { SessionID, MessageID } from "../../src/session/schema"
 
 const decodeFormat = Schema.decodeUnknownExit(SessionV1.Format)
@@ -164,7 +164,7 @@ describe("structured-output.AssistantMessage", () => {
 
 describe("structured-output.createStructuredOutputTool", () => {
   test("creates tool with description", () => {
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: { type: "object" },
       onSuccess: () => {},
     })
@@ -182,7 +182,7 @@ describe("structured-output.createStructuredOutputTool", () => {
       required: ["company"],
     }
 
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema,
       onSuccess: () => {},
     })
@@ -201,7 +201,7 @@ describe("structured-output.createStructuredOutputTool", () => {
       properties: { name: { type: "string" } },
     }
 
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema,
       onSuccess: () => {},
     })
@@ -214,7 +214,7 @@ describe("structured-output.createStructuredOutputTool", () => {
   test("execute calls onSuccess with valid args", async () => {
     let capturedOutput: unknown
 
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: { type: "object", properties: { name: { type: "string" } } },
       onSuccess: (output) => {
         capturedOutput = output
@@ -238,7 +238,7 @@ describe("structured-output.createStructuredOutputTool", () => {
     // Note: The AI SDK validates the input against the schema BEFORE calling execute()
     // So invalid inputs never reach the tool's execute function
     // This test documents the expected schema behavior
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: {
         type: "object",
         properties: {
@@ -261,7 +261,7 @@ describe("structured-output.createStructuredOutputTool", () => {
     // Note: The AI SDK validates the input against the schema BEFORE calling execute()
     // So invalid inputs never reach the tool's execute function
     // This test documents the expected schema behavior
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: {
         type: "object",
         properties: {
@@ -281,7 +281,7 @@ describe("structured-output.createStructuredOutputTool", () => {
   test("execute handles nested objects", async () => {
     let capturedOutput: unknown
 
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: {
         type: "object",
         properties: {
@@ -324,7 +324,7 @@ describe("structured-output.createStructuredOutputTool", () => {
   test("execute handles arrays", async () => {
     let capturedOutput: unknown
 
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: {
         type: "object",
         properties: {
@@ -360,7 +360,7 @@ describe("structured-output.createStructuredOutputTool", () => {
   })
 
   test("toModelOutput returns text value", async () => {
-    const tool = SessionPrompt.createStructuredOutputTool({
+    const tool = createStructuredOutputTool({
       schema: { type: "object" },
       onSuccess: () => {},
     })

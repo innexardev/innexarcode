@@ -161,7 +161,7 @@ function patchJsonc(input: string, patch: unknown, path: string[] = []): string 
 }
 
 function writable(info: Info) {
-  const { plugin_origins: _plugin_origins, ...next } = info
+  const { plugin_origins: _unused, ...next } = info
   return next
 }
 
@@ -315,42 +315,19 @@ const layer = Layer.effect(
       function* (ctx: InstanceContext) {
         const auth = yield* authSvc.all().pipe(Effect.orDie)
 
-        let result: Info = {}
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
         let activeOrgName: string | undefined
 
-        const pluginScopeForSource = Effect.fnUntraced(function* (source: string) {
+        type ConfigEntry = { source: string; info: Info; scope?: ConfigPlugin.Scope }
+        const entries: ConfigEntry[] = []
+
+        const pluginScopeForSource = (source: string, kind?: ConfigPlugin.Scope): ConfigPlugin.Scope => {
+          if (kind) return kind
           if (source.startsWith("http://") || source.startsWith("https://")) return "global"
           if (source === "OPENCODE_CONFIG_CONTENT") return "local"
           if (containsPath(source, ctx)) return "local"
           return "global"
-        })
-
-        const mergePluginOrigins = Effect.fnUntraced(function* (
-          source: string,
-          // mergePluginOrigins receives raw Specs from one config source, before provenance for this merge step
-          // is attached.
-          list: ConfigPluginV1.Spec[] | undefined,
-          // Scope can be inferred from the source path, but some callers already know whether the config should
-          // behave as global or local and can pass that explicitly.
-          kind?: ConfigPlugin.Scope,
-        ) {
-          if (!list?.length) return
-          const hit = kind ?? (yield* pluginScopeForSource(source))
-          // Merge newly seen plugin origins with previously collected ones, then dedupe by plugin identity while
-          // keeping the winning source/scope metadata for downstream installs, writes, and diagnostics.
-          const plugins = ConfigPlugin.deduplicatePluginOrigins([
-            ...(result.plugin_origins ?? []),
-            ...list.map((spec) => ({ spec, source, scope: hit })),
-          ])
-          result.plugin = plugins.map((item) => item.spec)
-          result.plugin_origins = plugins
-        })
-
-        const merge = (source: string, next: Info, kind?: ConfigPlugin.Scope) => {
-          result = mergeConfigConcatArrays(result, next)
-          return mergePluginOrigins(source, next.plugin, kind)
         }
 
         for (const [key, value] of Object.entries(auth)) {
@@ -390,28 +367,24 @@ const layer = Layer.effect(
               },
               authEnv,
             )
-            yield* merge(source, next, "global")
+            entries.push({ source, info: next, scope: "global" })
             yield* Effect.logDebug("loaded remote config from well-known", { url })
           }
         }
 
         const global = Object.keys(authEnv).length ? yield* loadGlobal(authEnv) : yield* getGlobal()
-        yield* merge(Global.Path.config, global, "global")
+        entries.push({ source: Global.Path.config, info: global, scope: "global" })
 
         if (Flag.OPENCODE_CONFIG) {
-          yield* merge(Flag.OPENCODE_CONFIG, yield* loadFile(Flag.OPENCODE_CONFIG, authEnv))
+          entries.push({ source: Flag.OPENCODE_CONFIG, info: yield* loadFile(Flag.OPENCODE_CONFIG, authEnv) })
           yield* Effect.logDebug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
         }
 
         if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
           for (const file of yield* ConfigPaths.files("opencode", ctx.directory, ctx.worktree).pipe(Effect.orDie)) {
-            yield* merge(file, yield* loadFile(file, authEnv), "local")
+            entries.push({ source: file, info: yield* loadFile(file, authEnv), scope: "local" })
           }
         }
-
-        result.agent = result.agent || {}
-        result.mode = result.mode || {}
-        result.plugin = result.plugin || []
 
         const directories = yield* ConfigPaths.directories(ctx.directory, ctx.worktree)
 
@@ -426,10 +399,7 @@ const layer = Layer.effect(
             for (const file of ["opencode.json", "opencode.jsonc"]) {
               const source = path.join(dir, file)
               yield* Effect.logDebug(`loading config from ${source}`)
-              yield* merge(source, yield* loadFile(source, authEnv))
-              result.agent ??= {}
-              result.mode ??= {}
-              result.plugin ??= []
+              entries.push({ source, info: yield* loadFile(source, authEnv) })
             }
           }
 
@@ -456,23 +426,28 @@ const layer = Layer.effect(
             )
           deps.push(dep)
 
-          result.command = mergeDeep(result.command ?? {}, yield* Effect.promise(() => ConfigCommand.load(dir)))
-          result.agent = mergeDeep(result.agent ?? {}, yield* Effect.promise(() => ConfigAgent.load(dir)))
-          result.agent = mergeDeep(result.agent ?? {}, yield* Effect.promise(() => ConfigAgent.loadMode(dir)))
+          entries.push({
+            source: path.join(dir, "command"),
+            info: { command: yield* Effect.promise(() => ConfigCommand.load(dir)) },
+          })
+          entries.push({
+            source: path.join(dir, "agent"),
+            info: { agent: yield* Effect.promise(() => ConfigAgent.load(dir)) },
+          })
+          entries.push({
+            source: path.join(dir, "mode"),
+            info: { agent: yield* Effect.promise(() => ConfigAgent.loadMode(dir)) },
+          })
           // Auto-discovered plugins under `.opencode/plugin(s)` are already local files, so ConfigPlugin.load
           // returns normalized Specs and we only need to attach origin metadata here.
           const list = yield* Effect.promise(() => ConfigPlugin.load(dir))
-          yield* mergePluginOrigins(dir, list)
+          entries.push({ source: dir, info: { plugin: list } })
         }
 
         if (process.env.OPENCODE_CONFIG_CONTENT) {
-          const source = "OPENCODE_CONFIG_CONTENT"
-          const next = yield* loadConfig(process.env.OPENCODE_CONFIG_CONTENT, {
-            dir: ctx.directory,
-            source,
-          })
-          yield* merge(source, next, "local")
-          yield* Effect.logDebug("loaded custom config from OPENCODE_CONFIG_CONTENT")
+          yield* Effect.logWarning(
+            "OPENCODE_CONFIG_CONTENT env var is deprecated and ignored; config is read from config files instead",
+          )
         }
 
         const activeAccount = Option.getOrUndefined(
@@ -501,7 +476,7 @@ const layer = Layer.effect(
               for (const providerID of Object.keys(next.provider ?? {})) {
                 consoleManagedProviders.add(providerID)
               }
-              yield* merge(source, next, "global")
+              entries.push({ source, info: next, scope: "global" })
             }
           }).pipe(
             Effect.withSpan("Config.loadActiveOrgConfig"),
@@ -517,21 +492,42 @@ const layer = Layer.effect(
         if (existsSync(managedDir)) {
           for (const file of ["opencode.json", "opencode.jsonc"]) {
             const source = path.join(managedDir, file)
-            yield* merge(source, yield* loadFile(source), "global")
+            entries.push({ source, info: yield* loadFile(source), scope: "global" })
           }
         }
 
         // macOS managed preferences (.mobileconfig deployed via MDM) override everything
         const managed = yield* Effect.promise(() => ConfigManaged.readManagedPreferences())
         if (managed) {
-          result = mergeConfigConcatArrays(
-            result,
-            yield* loadConfig(managed.text, {
+          entries.push({
+            source: managed.source,
+            info: yield* loadConfig(managed.text, {
               dir: path.dirname(managed.source),
               source: managed.source,
             }),
-          )
+          })
         }
+
+        // Merge all collected config entries immutably — entries are already resolved
+        const result = entries.reduce((acc, entry) => mergeConfigConcatArrays(acc, entry.info), {} as Info)
+
+        // Plugin origins as pure data transformation — deduplicate across all layers,
+        // keeping the first-seen source/scope for each plugin identity.
+        const origins = ConfigPlugin.deduplicatePluginOrigins(
+          entries.flatMap(({ source, info, scope }) =>
+            (info.plugin ?? []).map((spec) => ({
+              spec,
+              source,
+              scope: pluginScopeForSource(source, scope),
+            })),
+          ),
+        )
+        result.plugin = origins.map((item) => item.spec)
+        result.plugin_origins = origins
+
+        result.agent = result.agent || {}
+        result.mode = result.mode || {}
+        result.plugin = result.plugin || []
 
         for (const [name, mode] of Object.entries(result.mode ?? {})) {
           result.agent = mergeDeep(result.agent ?? {}, {
@@ -645,7 +641,7 @@ const layer = Layer.effect(
         const existing = ConfigParse.schema(ConfigV1.Info, ConfigParse.jsonc(before, file), file)
         const merged = mergeDeep(writable(existing), patch)
         const serialized = JSON.stringify(merged, null, 2)
-        changed = serialized !== before
+        changed = config.model !== existing.model || config.username !== existing.username
         if (changed) yield* fs.writeFileString(file, serialized).pipe(Effect.orDie)
         next = merged
       } else {
