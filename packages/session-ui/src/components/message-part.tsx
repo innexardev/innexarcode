@@ -2597,8 +2597,12 @@ ToolRegistry.register({
   name: "question",
   render(props) {
     const i18n = useI18n()
-    const questions = createMemo(() => (props.input.questions ?? []) as QuestionInfo[])
-    const answers = createMemo(() => (props.metadata.answers ?? []) as QuestionAnswer[])
+    const questions = createMemo(() =>
+      Array.isArray(props.input.questions) ? (props.input.questions as unknown as QuestionInfo[]) : [],
+    )
+    const answers = createMemo(() =>
+      Array.isArray(props.metadata.answers) ? (props.metadata.answers as unknown as QuestionAnswer[]) : [],
+    )
     const completed = createMemo(() => answers().length > 0)
 
     const subtitle = createMemo(() => {
