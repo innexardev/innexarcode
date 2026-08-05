@@ -118,11 +118,10 @@ await Bun.file(`./dist/${publishName}/package.json`).write(
   ),
 )
 
-// 3. Publica os pacotes de binário + wrapper
-const tasks = Object.entries(binaries).map(async ([name, ver]) => {
+// 3. Publica os pacotes de binário + wrapper (SEQUENCIAL — evita conflito staged)
+for (const [name, ver] of Object.entries(binaries)) {
   await publishPkg(`./dist/${name}`, name, ver)
-})
-await Promise.all(tasks)
+}
 await publishPkg(`./dist/${publishName}`, `${publishName}-ai`, resolvedVersion)
 
 console.log(`[npm] Publicação concluída: ${publishName}-ai@${resolvedVersion} (channel: ${channel})`)

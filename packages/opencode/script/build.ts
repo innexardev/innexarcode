@@ -20,6 +20,7 @@ const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
+const osFlag = process.argv.find((arg) => arg.startsWith("--os="))?.slice("--os=".length)
 const plugin = createSolidTransformPlugin()
 const skipEmbedWebUi = process.argv.includes("--skip-embed-web-ui")
 
@@ -113,9 +114,14 @@ const allTargets: {
   },
 ]
 
-const targets = singleFlag
+const targets = singleFlag || osFlag
   ? allTargets.filter((item) => {
-      if (item.os !== process.platform || item.arch !== process.arch) {
+      // Filter by explicit OS flag if provided (e.g. --os=win32)
+      if (osFlag && item.os !== osFlag) {
+        return false
+      }
+
+      if (singleFlag && (item.os !== process.platform || item.arch !== process.arch)) {
         return false
       }
 

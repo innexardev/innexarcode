@@ -73,3 +73,8 @@ fi
 
 NEW=$(git rev-parse HEAD)
 log "atualização concluída: $NEW"
+
+# Garante que o link binário exista (reboot pode removê-lo)
+if ! command -v opencode-engos >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+  npm rebuild -g opencode-engos-ai --silent >> "$LOG" 2>&1 || true
+fi

@@ -56,6 +56,7 @@ import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
+import { FilePicker } from "../file-picker"
 import { useLocation } from "../../context/location"
 
 registerOpencodeSpinner()
@@ -371,7 +372,6 @@ export function Prompt(props: PromptProps) {
         name: "prompt.attach",
         category: "Prompt",
         run: () => {
-          const { FilePicker } = require("../file-picker")
           dialog.replace(() => (
             <FilePicker
               onAttach={(file: { filename?: string; filepath?: string; content: string; mime: string; text?: string }) => {

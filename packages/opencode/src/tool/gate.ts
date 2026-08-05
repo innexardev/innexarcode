@@ -1,9 +1,7 @@
 import { Effect, Schema } from "effect"
+import { pipelineState } from "@opencode-ai/core/pipeline"
 import * as Tool from "./tool"
-import { exec } from "child_process"
-import { promisify } from "util"
-
-const execAsync = promisify(exec)
+import { execFile } from "child_process"
 
 export const GateName = Schema.Union([
   Schema.Literal("build"),
@@ -42,30 +40,28 @@ const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "s
 
 const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy"] as const
 
-const GATE_COMMANDS: Record<string, string> = {
-  build: "bun run build",
-  lint: "bun run lint",
-  types: "bun typecheck",
-  tests: "bun test",
-  coverage: "bun test --coverage",
-  security: "bun audit",
-  docker: "ls Dockerfile 2>/dev/null || ls docker-compose.yml 2>/dev/null || echo 'no-docker-config'",
-  deploy: "ls deploy.yaml 2>/dev/null || ls .github/deploy.yaml 2>/dev/null || ls deploy.yml 2>/dev/null || echo 'no-deploy-config'",
+const WORKSPACE = "/root/opencode-engos"
+const BUN = "/root/.bun/bin/bun"
+
+const GATE_ARGS: Record<string, [string, string[]]> = {
+  build: [BUN, ["run", "build"]],
+  lint: [BUN, ["run", "lint"]],
+  types: [BUN, ["run", "typecheck"]],
+  tests: [BUN, ["run", "test"]],
+  coverage: [BUN, ["run", "test", "--coverage"]],
+  security: [BUN, ["run", "audit"]],
+  docker: ["/usr/bin/sh", ["-c", "ls /root/opencode-engos/Dockerfile 2>/dev/null || ls /root/opencode-engos/docker-compose.yml 2>/dev/null || echo 'no-docker-config'"]],
+  deploy: ["/usr/bin/sh", ["-c", "ls /root/opencode-engos/deploy.yaml 2>/dev/null || ls /root/opencode-engos/.github/deploy.yaml 2>/dev/null || ls /root/opencode-engos/deploy.yml 2>/dev/null || echo 'no-deploy-config'"]],
 }
 
-async function execGate(gate: GateName) {
-  const cmd = GATE_COMMANDS[gate]
-  try {
-    const { stdout, stderr } = await execAsync(cmd)
-    return { stdout, stderr, passed: !stderr }
-  } catch (error: unknown) {
-    const err = error as { stdout?: string; stderr?: string; message?: string }
-    return {
-      stdout: err.stdout || "",
-      stderr: err.stderr || err.message || String(error),
-      passed: false,
-    }
-  }
+async function execGate(gate: GateName): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean }> {
+  const [bin, args] = GATE_ARGS[gate] ?? ["/usr/bin/true", []]
+  return new Promise((resolve) => {
+    execFile(bin, args, { cwd: WORKSPACE, timeout: 120_000 }, (error, stdout, stderr) => {
+      const exitCode = (error as { code?: number } | undefined)?.code ?? (error ? 1 : 0)
+      resolve({ stdout: stdout || "", stderr: stderr || "", exitCode, passed: exitCode === 0 })
+    })
+  })
 }
 
 function runGate(gate: GateName) {
@@ -73,6 +69,7 @@ function runGate(gate: GateName) {
     const start = Date.now()
     const { stdout, stderr, passed } = yield* Effect.promise(() => execGate(gate))
     const duration = Date.now() - start
+    if (passed && pipelineState) pipelineState.passGate(gate)
     const result: Schema.Schema.Type<typeof GateResult> = {
       gate,
       passed,
