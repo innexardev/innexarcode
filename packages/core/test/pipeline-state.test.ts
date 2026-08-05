@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { PipelineStateMachine, PHASE_ORDER, PHASE_LABELS, PHASE_GATES, type Phase } from "@opencode-ai/core/pipeline/state"
 
 describe("PipelineStateMachine", () => {
@@ -184,5 +187,27 @@ describe("PipelineStateMachine", () => {
     const parsed = JSON.parse(p.toJSON())
     expect(parsed.nextPhase).toBe("Research")
     expect(parsed.nextAgent).toBe("general")
+  })
+
+  test("reload with corrupt file keeps current status and does not throw", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pipeline-state-test-"))
+    const path = join(dir, "state.json")
+    const sm = new PipelineStateMachine(path)
+    sm.startPhase("discovery")
+    sm.completePhase("discovery")
+    await sm.save(path)
+    writeFileSync(path, "{ definitely broken json")
+    const status = await sm.reload()
+    expect(status.completedPhases).toContain("discovery")
+    expect(status.currentPhase).toBeNull()
+  })
+
+  test("load with corrupt file returns fresh initial status and does not throw", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pipeline-state-test-"))
+    const path = join(dir, "state.json")
+    writeFileSync(path, "{ definitely broken json")
+    const sm = await PipelineStateMachine.load(path)
+    expect(sm.getStatus().completedPhases).toEqual([])
+    expect(sm.getStatus().currentPhase).toBeNull()
   })
 })

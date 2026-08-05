@@ -1,5 +1,9 @@
 export * as PipelineState from "./state"
 
+import { randomUUID } from "node:crypto"
+import { mkdir, rename, writeFile } from "node:fs/promises"
+import { dirname } from "node:path"
+
 /**
  * Pipeline State Machine — enforced phase ordering with gates.
  *
@@ -60,9 +64,67 @@ export function createInitialStatus(): PipelineStatus {
   }
 }
 
+export function statusFromJson(data: unknown): PipelineStatus | null {
+  if (typeof data !== "object" || data === null) return null
+  const d = data as Record<string, unknown>
+  if (!Array.isArray(d.completedPhases) || !Array.isArray(d.failedPhases)) return null
+  if (typeof d.gatesPassed !== "object" || d.gatesPassed === null) return null
+  return d as unknown as PipelineStatus
+}
+
 export class PipelineStateMachine {
   private status: PipelineStatus = createInitialStatus()
   private listeners: Array<(status: PipelineStatus) => void> = []
+  private persistPath: string | null = null
+
+  constructor(persistPath?: string) {
+    this.persistPath = persistPath ?? null
+  }
+
+  private autoSave(): void {
+    if (this.persistPath) {
+      this.save(this.persistPath).catch(console.error)
+    }
+  }
+
+  async save(path: string): Promise<void> {
+    await mkdir(dirname(path), { recursive: true })
+    const tmp = `${path}.${randomUUID()}.tmp`
+    await writeFile(tmp, JSON.stringify(this.status, null, 2), { flag: "wx" })
+    await rename(tmp, path)
+  }
+
+  static async load(path: string): Promise<PipelineStateMachine> {
+    const file = Bun.file(path)
+    if (!await file.exists()) {
+      return new PipelineStateMachine(path)
+    }
+    const sm = new PipelineStateMachine(path)
+    try {
+      const status = statusFromJson(await file.json())
+      if (status) sm.status = status
+    } catch {
+      // corrupt state file: keep fresh initial status, never throw
+    }
+    return sm
+  }
+
+  async reload(): Promise<PipelineStatus> {
+    if (this.persistPath) {
+      const file = Bun.file(this.persistPath)
+      if (await file.exists()) {
+        try {
+          const status = statusFromJson(await file.json())
+          if (status) this.status = status
+        } catch {
+          // corrupt state file: keep current in-memory status, never throw
+        }
+      }
+    }
+    this.notify()
+    this.autoSave()
+    return this.getStatus()
+  }
 
   getStatus(): PipelineStatus {
     return { ...this.status }
@@ -84,16 +146,13 @@ export class PipelineStateMachine {
    * Returns { ok, error? }.
    */
   startPhase(phase: Phase): { ok: boolean; error?: string } {
-    // Check if phase exists
     const phaseIdx = PHASE_ORDER.indexOf(phase)
     if (phaseIdx === -1) return { ok: false, error: `Unknown phase: ${phase}` }
 
-    // Check if already completed
     if (this.status.completedPhases.includes(phase)) {
       return { ok: false, error: `Phase "${PHASE_LABELS[phase]}" already completed` }
     }
 
-    // Check order: all previous phases must be completed
     const previousPhases = PHASE_ORDER.slice(0, phaseIdx)
     for (const prev of previousPhases) {
       if (!this.status.completedPhases.includes(prev)) {
@@ -104,7 +163,6 @@ export class PipelineStateMachine {
       }
     }
 
-    // Check gates required for this phase
     const requiredGates = PHASE_GATES[phase]
     if (requiredGates) {
       const missing = requiredGates.filter((g) => !this.status.gatesPassed[g])
@@ -119,6 +177,7 @@ export class PipelineStateMachine {
     this.status.currentPhase = phase
     this.status.updatedAt = Date.now()
     this.notify()
+    this.autoSave()
     return { ok: true }
   }
 
@@ -136,7 +195,6 @@ export class PipelineStateMachine {
     this.status.currentPhase = null
     this.status.updatedAt = Date.now()
 
-    // Auto-pass gates for completed phases
     if (phase === "implementation") {
       this.status.gatesPassed["build"] = true
       this.status.gatesPassed["lint"] = true
@@ -146,6 +204,7 @@ export class PipelineStateMachine {
     if (phase === "security") this.status.gatesPassed["security"] = true
 
     this.notify()
+    this.autoSave()
     return { ok: true }
   }
 
@@ -157,6 +216,7 @@ export class PipelineStateMachine {
     this.status.currentPhase = null
     this.status.updatedAt = Date.now()
     this.notify()
+    this.autoSave()
     return { ok: true }
   }
 
@@ -167,6 +227,7 @@ export class PipelineStateMachine {
     this.status.gatesPassed[gate] = true
     this.status.updatedAt = Date.now()
     this.notify()
+    this.autoSave()
   }
 
   /**
@@ -192,6 +253,7 @@ export class PipelineStateMachine {
   reset(): void {
     this.status = createInitialStatus()
     this.notify()
+    this.autoSave()
   }
 
   /**

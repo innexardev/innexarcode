@@ -1,9 +1,7 @@
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
-import { PipelineStateMachine, PHASE_ORDER, PHASE_LABELS, PHASE_GATES, PHASE_AGENT } from "@opencode-ai/core/pipeline/state"
+import { pipelineState, reloadPipelineState, PHASE_ORDER, PHASE_LABELS, PHASE_GATES, PHASE_AGENT } from "@opencode-ai/core/pipeline"
 import type { Phase } from "@opencode-ai/core/pipeline/state"
-
-const stateMachine = new PipelineStateMachine()
 
 const phaseLiterals = [...PHASE_ORDER] as const
 
@@ -45,21 +43,23 @@ export const PipelineAdvanceTool = Tool.define<typeof Parameters, Metadata, neve
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
+          yield* Effect.promise(() => reloadPipelineState())
+
           const phase = params.phase
           let result: PipelineStatusResult
 
           if (params.status === "start") {
-            result = stateMachine.startPhase(phase)
+            result = pipelineState.startPhase(phase)
           } else if (params.status === "complete") {
-            result = stateMachine.completePhase(phase)
+            result = pipelineState.completePhase(phase)
           } else {
-            result = stateMachine.failPhase(phase, params.note || "Unknown error")
+            result = pipelineState.failPhase(phase, params.note || "Unknown error")
           }
 
-          const status = stateMachine.getStatus()
-          const nextPhase = stateMachine.getNextPhase()
+          const status = pipelineState.getStatus()
+          const nextPhase = pipelineState.getNextPhase()
           const nextAgent = nextPhase ? PHASE_AGENT[nextPhase] : undefined
-          const isComplete = stateMachine.isComplete()
+          const isComplete = pipelineState.isComplete()
           const requiredGates = PHASE_GATES[phase] || []
 
           const title = result.ok

@@ -1,54 +1,32 @@
-export * as Pipeline from "./index"
-export * as Todo from "./todo"
+import { homedir } from "node:os"
+import {
+  PipelineStateMachine,
+  PHASE_ORDER,
+  PHASE_LABELS,
+  PHASE_GATES,
+  PHASE_AGENT,
+  createInitialStatus,
+  statusFromJson,
+  type Phase,
+  type PipelineStatus,
+} from "./state"
+import * as Backlog from "./backlog"
+import * as Loop from "./loop"
+import * as Observability from "./observability"
+import * as Templates from "./templates"
+import * as Todo from "./todo"
+import * as Workflow from "./workflow"
 
-import { Context, Effect, Schema } from "effect"
-import { State } from "../state"
+const persistPath =
+  process.env.PIPELINE_STATE_PATH ?? `${homedir()}/.opencode/pipeline-state.json`
 
-export const Phase = Schema.Union([
-  Schema.Literal("discovery"),
-  Schema.Literal("research"),
-  Schema.Literal("planning"),
-  Schema.Literal("architecture"),
-  Schema.Literal("debate"),
-  Schema.Literal("implementation"),
-  Schema.Literal("review"),
-  Schema.Literal("qa"),
-  Schema.Literal("security"),
-  Schema.Literal("self-critique"),
-  Schema.Literal("question"),
-  Schema.Literal("audit"),
-  Schema.Literal("delivery"),
-])
-export type Phase = typeof Phase.Type
+export const pipelineState = await PipelineStateMachine.load(persistPath)
+// NOTE: singleton reloads on module re-eval (tsgo dev)
 
-export const PHASE_ORDER: Phase[] = [
-  "discovery",
-  "research",
-  "planning",
-  "architecture",
-  "debate",
-  "implementation",
-  "review",
-  "qa",
-  "security",
-  "self-critique",
-  "question",
-  "audit",
-  "delivery",
-]
-
-export const PHASE_LABELS: Record<Phase, string> = {
-  discovery: "Discovery",
-  research: "Research",
-  planning: "Planning",
-  architecture: "Architecture",
-  debate: "Debate",
-  implementation: "Implementation",
-  review: "Review",
-  qa: "QA",
-  security: "Security",
-  "self-critique": "Self-Critique",
-  question: "Question",
-  audit: "Audit",
-  delivery: "Delivery",
+export async function reloadPipelineState(): Promise<PipelineStatus> {
+  return await pipelineState.reload()
 }
+
+export { PipelineStateMachine, createInitialStatus, statusFromJson, Backlog, Loop, Observability, Templates, Todo, Workflow }
+export { PHASE_ORDER, PHASE_LABELS, PHASE_GATES, PHASE_AGENT }
+export type { Phase, PipelineStatus }

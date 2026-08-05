@@ -32,6 +32,15 @@ import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
 import { GateTool } from "./gate"
 import { PipelineAdvanceTool } from "./pipeline-advance"
+import { BacklogAddTool } from "./backlog-add"
+import { BacklogNextTool } from "./backlog-next"
+import { BacklogListTool } from "./backlog-list"
+import { BacklogClaimTool } from "./backlog-claim"
+import { BacklogCompleteTool } from "./backlog-complete"
+import { BacklogCancelTool } from "./backlog-cancel"
+import { ObservabilityRecordTool } from "./observability-record"
+import { TemplateStartTool } from "./template-start"
+import { LoopRunTool } from "./loop-run"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -115,6 +124,15 @@ const layer = Layer.effect(
     const contextengine = yield* ContextEngineTool
     const gatetool = yield* GateTool
     const pipelineadvance = yield* PipelineAdvanceTool
+    const backlogadd = yield* BacklogAddTool
+    const backlognext = yield* BacklogNextTool
+    const backloglist = yield* BacklogListTool
+    const backlogclaim = yield* BacklogClaimTool
+    const backlogcomplete = yield* BacklogCompleteTool
+    const backlogcancel = yield* BacklogCancelTool
+    const observabilityrecord = yield* ObservabilityRecordTool
+    const templatestart = yield* TemplateStartTool
+    const looprun = yield* LoopRunTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -223,6 +241,15 @@ const layer = Layer.effect(
           contextEngine: Tool.init(contextengine),
           gate: Tool.init(gatetool),
           pipelineAdvance: Tool.init(pipelineadvance),
+          backlogAdd: Tool.init(backlogadd),
+          backlogNext: Tool.init(backlognext),
+          backlogList: Tool.init(backloglist),
+          backlogClaim: Tool.init(backlogclaim),
+          backlogComplete: Tool.init(backlogcomplete),
+          backlogCancel: Tool.init(backlogcancel),
+          observabilityRecord: Tool.init(observabilityrecord),
+          templateStart: Tool.init(templatestart),
+          loopRun: Tool.init(looprun),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
@@ -250,6 +277,15 @@ const layer = Layer.effect(
             tool.contextEngine,
             tool.gate,
             tool.pipelineAdvance,
+            tool.backlogAdd,
+            tool.backlogNext,
+            tool.backlogList,
+            tool.backlogClaim,
+            tool.backlogComplete,
+            tool.backlogCancel,
+            tool.observabilityRecord,
+            tool.templateStart,
+            tool.loopRun,
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),

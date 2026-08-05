@@ -14,3 +14,12 @@ Engineering OS is a layered platform on top of an opencode fork. opencode provid
 
 ## Dependency Inversion
 Core types (Pipeline, Agent, Gate, Context) live in @opencode-ai/core. Implementation packages (cli, agents, pipeline, tui) depend on core. No circular cross-package dependencies.
+
+## Autonomous Engineering (2026-08-05)
+
+- **BacklogEngine** — RICE priority (reach × impact × confidence ÷ effort), persisted to `~/.opencode/backlog.json`.
+- **ObservabilityEngine** — dedupe window 1h, error events auto-create backlog bugs, persisted to `~/.opencode/observability.json`.
+- **LoopEngine** — maxIterations default 3, escalates after 2 consecutive failures, persisted to `~/.opencode/loop-state.json`.
+- **PipelineTemplates** — project types: web, data, infra, product, mobile, api; phases reference the canonical agent roster (validate() checks against KNOWN_AGENTS).
+- **Workflow** — `getState`/`decide` now implemented; `state` gained `reload()`.
+- **Tools** — 9 new tools registered: backlog-add, backlog-next, backlog-list, backlog-claim, backlog-complete, backlog-cancel, observability-record, template-start, loop-run.

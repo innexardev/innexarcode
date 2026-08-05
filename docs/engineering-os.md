@@ -59,6 +59,12 @@ Question → Audit → Delivery
 discover, research, plan-create, plan-review, debate,
 self-critique, audit-report, deliver, init, review
 
+### Tools Autônomas (9)
+
+backlog-add, backlog-next, backlog-list, backlog-claim,
+backlog-complete, backlog-cancel, observability-record,
+template-start, loop-run
+
 ### Quality Board
 
 Avalia 12 dimensões com score 0-100:
