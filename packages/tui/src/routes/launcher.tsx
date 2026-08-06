@@ -188,7 +188,7 @@ export function LauncherView() {
   return (
     <box flexGrow={1} flexDirection="column" padding={1}>
       <box height={1} />
-      <text fg={theme.accent}>OpenCode</text>
+      <text fg={theme.accent}>iNNEXARCode</text>
       <Show when={newProject()}>
         <text fg={theme.textMuted}>Novo projeto em: escolha o diretório-pai e pressione Enter</text>
       </Show>
