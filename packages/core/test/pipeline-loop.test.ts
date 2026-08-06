@@ -222,3 +222,61 @@ describe("LoopEngine", () => {
     expect(state.iterations[0].result).toBe(state.lastError)
   })
 })
+
+describe("LoopEngine + PipelineStateMachine integration", () => {
+  test("successful iteration completes the phase in the pipeline", async () => {
+    const { PipelineStateMachine } = await import("@opencode-ai/core/pipeline")
+    const sm = await PipelineStateMachine.load(makePath())
+    const engine = new LoopEngine(makePath(), {}, sm)
+    await engine.start("goal")
+    await engine.runIteration("discovery", succeed)
+    const status = sm.getStatus()
+    expect(status.completedPhases).toContain("discovery")
+  })
+
+  test("failure marks the phase failed when it is current", async () => {
+    const { PipelineStateMachine } = await import("@opencode-ai/core/pipeline")
+    const sm = await PipelineStateMachine.load(makePath())
+    sm.startPhase("discovery")
+    const engine = new LoopEngine(makePath(), {}, sm)
+    await engine.start("goal")
+    await engine.runIteration("discovery", fail)
+    const status = sm.getStatus()
+    expect(status.failedPhases.some((f) => f.phase === "discovery")).toBe(true)
+  })
+
+  test("out-of-order phase is rejected by pipeline and iteration fails", async () => {
+    const { PipelineStateMachine } = await import("@opencode-ai/core/pipeline")
+    const sm = await PipelineStateMachine.load(makePath())
+    const engine = new LoopEngine(makePath(), {}, sm)
+    await engine.start("goal")
+    const state = await engine.runIteration("research", succeed)
+    expect(state.iterations[0].status).toBe("failed")
+    expect(state.iterations[0].result).toContain("Previous phase")
+    expect(sm.getStatus().completedPhases).not.toContain("research")
+  })
+
+  test("non-phase names are ignored by pipeline sync", async () => {
+    const { PipelineStateMachine } = await import("@opencode-ai/core/pipeline")
+    const sm = await PipelineStateMachine.load(makePath())
+    const engine = new LoopEngine(makePath(), {}, sm)
+    await engine.start("goal")
+    const state = await engine.runIteration("custom-step", succeed)
+    expect(state.iterations[0].status).toBe("success")
+    expect(sm.getStatus().completedPhases).toHaveLength(0)
+  })
+
+  test("sequential phases advance the pipeline in order", async () => {
+    const { PipelineStateMachine } = await import("@opencode-ai/core/pipeline")
+    const sm = await PipelineStateMachine.load(makePath())
+    const engine = new LoopEngine(makePath(), { convergenceCriteria: ["done"] }, sm)
+    await engine.start("goal")
+    await engine.runIteration("discovery", succeed)
+    await engine.runIteration("research", succeed)
+    await engine.runIteration("planning", async () => ({ ok: true, adjustments: { done: true } }))
+    const status = sm.getStatus()
+    expect(status.completedPhases).toEqual(["discovery", "research", "planning"])
+    const loopState = await engine.status()
+    expect(loopState!.status).toBe("done")
+  })
+})

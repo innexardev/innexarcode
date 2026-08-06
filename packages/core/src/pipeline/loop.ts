@@ -3,6 +3,8 @@ import { mkdir, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname } from "node:path"
 import { Option, Schema } from "effect"
+import { PHASE_ORDER, type Phase } from "./state"
+import type { PipelineStateMachine } from "./state"
 
 export const LoopStatus = Schema.Union([
   Schema.Literal("idle"),
@@ -84,12 +86,39 @@ function normalizeConfig(config: Partial<LoopConfig>): LoopConfig {
 
 export class LoopEngine {
   readonly config: LoopConfig
+  private readonly pipeline?: PipelineStateMachine
 
   constructor(
     private readonly filePath: string = `${homedir()}/.opencode/loop-state.json`,
     config: Partial<LoopConfig> = {},
+    pipeline?: PipelineStateMachine,
   ) {
     this.config = normalizeConfig(config)
+    this.pipeline = pipeline
+  }
+
+  /**
+   * Sync the phase with the pipeline state machine when one is connected:
+   * - success: startPhase + completePhase (validates order and gates)
+   * - failure: failPhase when the phase is the current one
+   * Returns an error string when the pipeline rejected the transition.
+   */
+  private async syncPipeline(phase: string, ok: boolean, error?: string): Promise<string | undefined> {
+    if (!this.pipeline || !PHASE_ORDER.includes(phase as Phase)) return undefined
+    const p = phase as Phase
+    const status = this.pipeline.getStatus()
+    if (status.completedPhases.includes(p)) return undefined
+    if (ok) {
+      const start = this.pipeline.startPhase(p)
+      if (!start.ok) return start.error ?? "startPhase failed"
+      const done = this.pipeline.completePhase(p)
+      if (!done.ok) return done.error ?? "completePhase failed"
+      return undefined
+    }
+    if (status.currentPhase === p) {
+      this.pipeline.failPhase(p, error ?? "iteration failed")
+    }
+    return undefined
   }
 
   async start(goal: string): Promise<LoopState> {
@@ -129,21 +158,27 @@ export class LoopEngine {
       return current
     }
 
+    // Sync with the pipeline state machine (start/complete/fail phase)
+    const pipelineError = await this.syncPipeline(phase, result.ok, result.error)
+    const workResult = pipelineError
+      ? { ok: false, error: pipelineError, adjustments: result.adjustments }
+      : result
+
     const number = (state.currentIteration ?? 0) + 1
-    const escalated = !result.ok && state.failureCount + 1 >= 2
-    const error = result.ok ? undefined : sanitizeError(result.error ?? "Unknown error")
+    const escalated = !workResult.ok && state.failureCount + 1 >= 2
+    const error = workResult.ok ? undefined : sanitizeError(workResult.error ?? "Unknown error")
 
     const iteration: LoopIteration = {
       number,
       phase,
-      status: escalated ? "escalated" : result.ok ? "success" : "failed",
-      adjustments: result.adjustments ?? {},
+      status: escalated ? "escalated" : workResult.ok ? "success" : "failed",
+      adjustments: workResult.adjustments ?? {},
       durationMs: timestamp - startedAt,
       timestamp,
       result: error,
     }
     const status = transition(
-      result,
+      workResult,
       escalated,
       converged(this.config, iteration.adjustments),
       number,
@@ -155,8 +190,8 @@ export class LoopEngine {
       iterations: [...state.iterations, iteration],
       currentIteration: number,
       finishedAt: status === "running" || status === "iterating" ? null : timestamp,
-      failureCount: result.ok ? 0 : state.failureCount + 1,
-      lastError: result.ok ? state.lastError : error,
+      failureCount: workResult.ok ? 0 : state.failureCount + 1,
+      lastError: workResult.ok ? state.lastError : error,
     }
 
     await this.persist(next)
