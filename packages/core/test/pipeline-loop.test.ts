@@ -137,6 +137,8 @@ describe("LoopEngine", () => {
       maxIterations: 3,
       convergenceCriteria: criteria,
       delayMs: 0,
+      maxDiffBytes: 50000,
+      tokenBudget: 0,
     })
     expect(converged(config([]), {})).toBe(true)
     expect(converged(config(["tests"]), { tests: true })).toBe(true)

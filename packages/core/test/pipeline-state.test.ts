@@ -102,10 +102,15 @@ describe("PipelineStateMachine", () => {
 
   test("gates are enforced: qa requires build + types + tests", () => {
     const p = new PipelineStateMachine()
-    ;["discovery", "research", "planning", "architecture", "debate", "implementation", "review"].forEach((ph) => {
+    ;["discovery", "research", "planning", "architecture", "debate", "implementation"].forEach((ph) => {
       p.startPhase(ph as Phase)
       p.completePhase(ph as Phase)
     })
+    p.passGate("lint")
+    p.passGate("types")
+    p.passGate("complexity")
+    p.startPhase("review" as Phase)
+    p.completePhase("review" as Phase)
     const result = p.startPhase("qa")
     expect(result.ok).toBe(false)
     expect(result.error).toContain("Required gates not passed")
@@ -113,10 +118,15 @@ describe("PipelineStateMachine", () => {
 
   test("gates pass allows phase start", () => {
     const p = new PipelineStateMachine()
-    ;["discovery", "research", "planning", "architecture", "debate", "implementation", "review"].forEach((ph) => {
+    ;["discovery", "research", "planning", "architecture", "debate", "implementation"].forEach((ph) => {
       p.startPhase(ph as Phase)
       p.completePhase(ph as Phase)
     })
+    p.passGate("lint")
+    p.passGate("types")
+    p.passGate("complexity")
+    p.startPhase("review" as Phase)
+    p.completePhase("review" as Phase)
     p.passGate("build")
     p.passGate("types")
     p.passGate("tests")

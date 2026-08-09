@@ -1,10 +1,14 @@
 export * as Backlog from "./backlog"
 
 import { Option, Schema } from "effect"
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname } from "node:path"
+
+export function fingerprint(message: string): string {
+  return createHash("md5").update(message).digest("hex").slice(0, 8)
+}
 
 const MAX_ITEMS = 5000
 
@@ -48,7 +52,9 @@ export const BacklogItem = Schema.Struct({
   createdAt: Schema.Number,
   claimedBy: Schema.optional(Schema.String),
   claimedAt: Schema.optional(Schema.Number),
+  claimedUntil: Schema.optional(Schema.Number),
   doneAt: Schema.optional(Schema.Number),
+  fingerprint: Schema.optional(Schema.String),
 })
 export type BacklogItem = typeof BacklogItem.Type
 
@@ -61,11 +67,16 @@ export interface BacklogAddInput {
   impact?: number
   confidence?: number
   effort?: number
+  fingerprint?: string
 }
 
-export function riceScore(item: { reach: number; impact: number; confidence: number; effort: number }): number {
+export function riceScore(item: { reach: number; impact: number; confidence: number; effort: number; createdAt?: number }): number {
   const score = (item.reach * item.impact * item.confidence) / item.effort
-  return Number.isFinite(score) ? score : 0
+  const base = Number.isFinite(score) ? score : 0
+  if (!item.createdAt) return base
+  const ageDays = (Date.now() - item.createdAt) / (24 * 60 * 60 * 1000)
+  const decay = 1 + Math.log(1 + ageDays) * 0.1
+  return base * decay
 }
 
 function clampFactor(value: unknown): number {
@@ -74,11 +85,13 @@ function clampFactor(value: unknown): number {
 
 export class BacklogEngine {
   private readonly filePath: string
+  private readonly claimedTtlMs: number
   private items: BacklogItem[] = []
   private loaded = false
 
-  constructor(filePath = `${homedir()}/.opencode/backlog.json`) {
+  constructor(filePath = `${homedir()}/.opencode/backlog.json`, claimedTtlMs = 30 * 60 * 1000) {
     this.filePath = filePath
+    this.claimedTtlMs = claimedTtlMs
   }
 
   private ensureLoaded(): void {
@@ -124,10 +137,17 @@ export class BacklogEngine {
     this.items = this.items.map((item) => (item.id === id ? updated : item))
   }
 
-  async list(status?: BacklogItemStatus | "all"): Promise<BacklogItem[]> {
+  async list(status?: BacklogItemStatus | "all", filterFingerprint?: string): Promise<BacklogItem[]> {
     this.ensureLoaded()
-    const items = status && status !== "all" ? this.items.filter((item) => item.status === status) : this.items
-    return [...items].sort((a, b) => b.priority - a.priority || a.createdAt - b.createdAt)
+    let items = status && status !== "all" ? this.items.filter((item) => item.status === status) : this.items
+    if (filterFingerprint !== undefined) {
+      items = items.filter((item) => item.fingerprint === filterFingerprint)
+    }
+    return [...items].sort((a, b) => {
+      const scoreA = riceScore({ reach: a.reach, impact: a.impact, confidence: a.confidence, effort: a.effort, createdAt: a.createdAt })
+      const scoreB = riceScore({ reach: b.reach, impact: b.impact, confidence: b.confidence, effort: b.effort, createdAt: b.createdAt })
+      return scoreB - scoreA || a.createdAt - b.createdAt
+    })
   }
 
   async add(input: BacklogAddInput): Promise<BacklogItem> {
@@ -149,12 +169,13 @@ export class BacklogEngine {
       type: input.type ?? "feature",
       source: input.source ?? "manual",
       status: "open",
-      priority: riceScore({ reach, impact, confidence, effort }),
+      priority: riceScore({ reach, impact, confidence, effort, createdAt: Date.now() }),
       reach,
       impact,
       confidence,
       effort,
       createdAt: Date.now(),
+      fingerprint: input.fingerprint,
     }
     this.items.push(item)
     this.persist()
@@ -163,9 +184,23 @@ export class BacklogEngine {
 
   async next(): Promise<BacklogItem | null> {
     this.ensureLoaded()
+    const now = Date.now()
+    let changed = false
+    this.items = this.items.map((item) => {
+      if (item.status === "claimed" && item.claimedUntil !== undefined && item.claimedUntil < now) {
+        changed = true
+        return { ...item, status: "open" as const, claimedBy: undefined, claimedAt: undefined, claimedUntil: undefined }
+      }
+      return item
+    })
+    if (changed) this.persist()
     const open = this.items.filter((item) => item.status === "open")
     if (open.length === 0) return null
-    return open.sort((a, b) => b.priority - a.priority || a.createdAt - b.createdAt)[0]
+    return open.sort((a, b) => {
+      const scoreA = riceScore({ reach: a.reach, impact: a.impact, confidence: a.confidence, effort: a.effort, createdAt: a.createdAt })
+      const scoreB = riceScore({ reach: b.reach, impact: b.impact, confidence: b.confidence, effort: b.effort, createdAt: b.createdAt })
+      return scoreB - scoreA || a.createdAt - b.createdAt
+    })[0]
   }
 
   async claim(id: string, agent: string): Promise<BacklogItem> {
@@ -173,7 +208,13 @@ export class BacklogEngine {
     const item = this.items.find((candidate) => candidate.id === id)
     if (!item) throw new Error(`Backlog item not found: ${id}`)
     if (item.status !== "open") throw new Error(`Backlog item is not open: ${item.status}`)
-    const updated: BacklogItem = { ...item, status: "claimed", claimedBy: agent, claimedAt: Date.now() }
+    const updated: BacklogItem = {
+      ...item,
+      status: "claimed",
+      claimedBy: agent,
+      claimedAt: Date.now(),
+      claimedUntil: Date.now() + this.claimedTtlMs,
+    }
     this.replace(id, updated)
     this.persist()
     return updated
@@ -200,6 +241,34 @@ export class BacklogEngine {
     return updated
   }
 
+  async refreshClaim(id: string): Promise<BacklogItem> {
+    this.ensureLoaded()
+    const item = this.items.find((candidate) => candidate.id === id)
+    if (!item) throw new Error(`Backlog item not found: ${id}`)
+    if (item.status !== "claimed") throw new Error(`Backlog item is not claimed: ${item.status}`)
+    const updated: BacklogItem = { ...item, claimedUntil: Date.now() + this.claimedTtlMs }
+    this.replace(id, updated)
+    this.persist()
+    return updated
+  }
+
+  async releaseClaim(id: string): Promise<BacklogItem> {
+    this.ensureLoaded()
+    const item = this.items.find((candidate) => candidate.id === id)
+    if (!item) throw new Error(`Backlog item not found: ${id}`)
+    if (item.status !== "claimed") throw new Error(`Backlog item is not claimed: ${item.status}`)
+    const updated: BacklogItem = {
+      ...item,
+      status: "open",
+      claimedBy: undefined,
+      claimedAt: undefined,
+      claimedUntil: undefined,
+    }
+    this.replace(id, updated)
+    this.persist()
+    return updated
+  }
+
   async prioritize(
     id: string,
     input: { reach: number; impact: number; confidence: number; effort: number },
@@ -213,7 +282,7 @@ export class BacklogEngine {
       confidence: clampFactor(input.confidence),
       effort: clampFactor(input.effort),
     }
-    const updated: BacklogItem = { ...item, ...clamped, priority: riceScore(clamped) }
+    const updated: BacklogItem = { ...item, ...clamped, priority: riceScore({ ...clamped, createdAt: item.createdAt }) }
     this.replace(id, updated)
     this.persist()
     return updated

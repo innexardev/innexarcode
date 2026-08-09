@@ -21,6 +21,8 @@ export interface LoopConfig {
   maxIterations: number
   convergenceCriteria: string[]
   delayMs: number
+  maxDiffBytes: number
+  tokenBudget: number
 }
 
 export const LoopIteration = Schema.Struct({
@@ -35,6 +37,7 @@ export const LoopIteration = Schema.Struct({
   durationMs: Schema.Number,
   timestamp: Schema.Number,
   result: Schema.optional(Schema.String),
+  diffSize: Schema.optional(Schema.Number),
 })
 export type LoopIteration = typeof LoopIteration.Type
 
@@ -49,6 +52,9 @@ export const LoopState = Schema.Struct({
   finishedAt: Schema.optional(Schema.NullOr(Schema.Number)),
   failureCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   lastError: Schema.optional(Schema.String),
+  diffSizes: Schema.optional(Schema.Array(Schema.Number)),
+  escalationContext: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+  tokensUsed: Schema.optional(Schema.Number),
 })
 export type LoopState = typeof LoopState.Type
 
@@ -63,12 +69,21 @@ const DEFAULT_CONFIG: LoopConfig = {
   maxIterations: 3,
   convergenceCriteria: [],
   delayMs: 0,
+  maxDiffBytes: 50000,
+  tokenBudget: 0,
 }
 
 export function converged(config: LoopConfig, results: Record<string, unknown>): boolean {
   const criteria = config.convergenceCriteria
-  if (criteria.length === 0) return true
-  return criteria.every((c) => Object.hasOwn(results, c) && Boolean(results[c]))
+  if (criteria.length === 0 && (config.maxDiffBytes === 0 || config.maxDiffBytes === undefined)) return true
+  const criteriaMet = criteria.length === 0 || criteria.every((c) => Object.hasOwn(results, c) && Boolean(results[c]))
+  // diff shrinking is optional — only enforced when work reports diffSize
+  const diffMet =
+    config.maxDiffBytes === 0 ||
+    config.maxDiffBytes === undefined ||
+    typeof results.diffSize !== "number" ||
+    results.diffSize < config.maxDiffBytes
+  return criteriaMet && diffMet
 }
 
 function normalizeConfig(config: Partial<LoopConfig>): LoopConfig {
@@ -81,6 +96,8 @@ function normalizeConfig(config: Partial<LoopConfig>): LoopConfig {
     maxIterations,
     convergenceCriteria: config.convergenceCriteria ?? DEFAULT_CONFIG.convergenceCriteria,
     delayMs: config.delayMs ?? DEFAULT_CONFIG.delayMs,
+    maxDiffBytes: config.maxDiffBytes ?? DEFAULT_CONFIG.maxDiffBytes,
+    tokenBudget: config.tokenBudget ?? DEFAULT_CONFIG.tokenBudget,
   }
 }
 
@@ -137,6 +154,9 @@ export class LoopEngine {
       startedAt: Date.now(),
       finishedAt: null,
       failureCount: 0,
+      diffSizes: [],
+      escalationContext: undefined,
+      tokensUsed: 0,
     }
     await this.persist(state)
     return state
@@ -164,9 +184,29 @@ export class LoopEngine {
       ? { ok: false, error: pipelineError, adjustments: result.adjustments }
       : result
 
+    // Track tokens used
+    let tokensUsed = state.tokensUsed ?? 0
+    if (result.adjustments?.tokensUsed != null && typeof result.adjustments.tokensUsed === "number") {
+      tokensUsed += result.adjustments.tokensUsed
+    }
+
+    // Check token budget
+    let budgetExceeded = false
+    if (this.config.tokenBudget > 0 && tokensUsed > this.config.tokenBudget) {
+      budgetExceeded = true
+      workResult.ok = false
+      workResult.error = "token budget exceeded"
+    }
+
     const number = (state.currentIteration ?? 0) + 1
     const escalated = !workResult.ok && state.failureCount + 1 >= 2
     const error = workResult.ok ? undefined : sanitizeError(workResult.error ?? "Unknown error")
+
+    // Track diff size
+    const diffSize =
+      result.adjustments?.diffSize != null && typeof result.adjustments.diffSize === "number"
+        ? result.adjustments.diffSize
+        : undefined
 
     const iteration: LoopIteration = {
       number,
@@ -176,11 +216,36 @@ export class LoopEngine {
       durationMs: timestamp - startedAt,
       timestamp,
       result: error,
+      diffSize,
     }
+
+    // Build escalation context on escalation
+    let escalationContext = state.escalationContext
+    if (escalated && !escalationContext) {
+      escalationContext = {
+        goal: state.goal,
+        phase,
+        iterations: state.iterations.slice(-2).map((i) => ({
+          number: i.number,
+          phase: i.phase,
+          status: i.status,
+          result: i.result,
+        })),
+        failureReason: error,
+        attempts: state.failureCount + 1,
+      }
+    }
+
+    // Track diff sizes
+    const diffSizes = [...(state.diffSizes ?? [])]
+    if (diffSize != null) {
+      diffSizes.push(diffSize)
+    }
+
     const status = transition(
       workResult,
       escalated,
-      converged(this.config, iteration.adjustments),
+      converged(this.config, { ...iteration.adjustments, diffSize }),
       number,
       state.maxIterations,
     )
@@ -192,10 +257,37 @@ export class LoopEngine {
       finishedAt: status === "running" || status === "iterating" ? null : timestamp,
       failureCount: workResult.ok ? 0 : state.failureCount + 1,
       lastError: workResult.ok ? state.lastError : error,
+      diffSizes,
+      escalationContext,
+      tokensUsed,
     }
 
     await this.persist(next)
     return next
+  }
+
+  async getEscalationReport(): Promise<string | null> {
+    const state = await this.status()
+    const ctx = state?.escalationContext
+    if (!ctx || typeof ctx.goal !== "string") return null
+    const lines = [
+      "=== Loop Escalation Report ===",
+      `Goal: ${ctx.goal}`,
+      `Phase: ${String(ctx.phase ?? "unknown")}`,
+      `Attempts: ${String(ctx.attempts ?? 0)}`,
+      `Failure Reason: ${String(ctx.failureReason ?? "unknown")}`,
+      "",
+      "Recent Iterations:",
+    ]
+    const iterations = ctx.iterations
+    if (Array.isArray(iterations)) {
+      for (const iter of iterations) {
+        lines.push(
+          `  #${String(iter?.number ?? "?")} [${String(iter?.phase ?? "?")}] ${String(iter?.status ?? "?")}${iter?.result ? ` — ${String(iter.result)}` : ""}`,
+        )
+      }
+    }
+    return lines.join("\n")
   }
 
   async checkConvergence(criteria: string[], results: Record<string, unknown>): Promise<boolean> {

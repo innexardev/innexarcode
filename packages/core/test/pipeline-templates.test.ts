@@ -19,9 +19,9 @@ describe("PipelineTemplates", () => {
     }
   })
 
-  test("get('web') has 10 phases starting with discovery and ending with delivery", () => {
+  test("get('web') has 13 phases starting with discovery and ending with delivery", () => {
     const web = PipelineTemplates.get("web")
-    expect(web.phases.length).toBe(10)
+    expect(web.phases.length).toBe(13)
     expect(web.phases[0].id).toBe("discovery")
     expect(web.phases[web.phases.length - 1].id).toBe("delivery")
   })

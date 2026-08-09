@@ -1,0 +1,114 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bun-install-flags: ""
+            build-os-flag: ""
+            artifact-name: cli-linux-x64
+          - os: macos-latest
+            bun-install-flags: "--os=darwin --cpu=arm64"
+            build-os-flag: "--os=darwin"
+            artifact-name: cli-darwin-arm64
+          - os: macos-13
+            bun-install-flags: "--os=darwin --cpu=x64"
+            build-os-flag: "--os=darwin"
+            artifact-name: cli-darwin-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-bun
+        with:
+          install-flags: ${{ matrix.bun-install-flags }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build CLI
+        working-directory: packages/opencode
+        run: |
+          ./script/build.ts --skip-install ${{ matrix.build-os-flag }}
+        env:
+          OPENCODE_CHANNEL: dev
+
+      - name: Smoke test --version
+        working-directory: packages/opencode
+        run: |
+          # Find the built binary and test it
+          for dir in dist/opencode-*/bin/opencode; do
+            if [ -f "$dir" ] || [ -f "${dir}.exe" ]; then
+              echo "Testing: $dir"
+              "$dir" --version
+            fi
+          done
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: packages/opencode/dist/
+          retention-days: 7
+
+  publish-npm:
+    needs: build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages/opencode/dist/
+          merge-multiple: true
+
+      - name: Publish to npm
+        run: ./script/publish.ts
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          OPENCODE_CHANNEL: dev
+
+      - name: Smoke test post-publish install
+        run: |
+          TMPDIR=$(mktemp -d)
+          cd "$TMPDIR"
+          echo "Installing opencode-ai globally in clean directory..."
+          timeout 60 npm install -g opencode-ai
+          echo "Validating --version..."
+          timeout 10 opencode --version
+          RESULT=$?
+          rm -rf "$TMPDIR"
+          if [ $RESULT -ne 0 ]; then
+            echo "::error::Post-publish smoke test failed -- orphaned package detected"
+            exit 1
+          fi
+          echo "Post-publish validation passed"

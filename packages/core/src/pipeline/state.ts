@@ -29,7 +29,7 @@ export const PHASE_LABELS: Record<Phase, string> = {
 
 /** Gates required BEFORE a phase can start */
 export const PHASE_GATES: Partial<Record<Phase, string[]>> = {
-  review: ["lint", "types"],
+  review: ["lint", "types", "complexity"],
   qa: ["build", "types", "tests"],
   security: ["build", "tests"],
   delivery: ["build", "lint", "types", "tests", "security"],
@@ -44,11 +44,22 @@ export const PHASE_AGENT: Record<Phase, string> = {
   audit: "auditor", delivery: "release-manager",
 }
 
+export interface Risk {
+  id: string
+  description: string
+  severity: "low" | "medium" | "high"
+  mitigation: string
+}
+
 export interface PipelineStatus {
   currentPhase: Phase | null
+  currentSubphase: string | null
   completedPhases: Phase[]
+  completedSubphases: Record<string, string[]>
   failedPhases: { phase: Phase; error: string }[]
   gatesPassed: Record<string, boolean>
+  checkpoints: Record<string, unknown>
+  risks: Risk[]
   startedAt: number
   updatedAt: number
 }
@@ -56,9 +67,13 @@ export interface PipelineStatus {
 export function createInitialStatus(): PipelineStatus {
   return {
     currentPhase: null,
+    currentSubphase: null,
     completedPhases: [],
+    completedSubphases: {},
     failedPhases: [],
     gatesPassed: {},
+    checkpoints: {},
+    risks: [],
     startedAt: Date.now(),
     updatedAt: Date.now(),
   }
@@ -193,6 +208,10 @@ export class PipelineStateMachine {
     }
     this.status.completedPhases = [...this.status.completedPhases, phase]
     this.status.currentPhase = null
+    this.status.currentSubphase = null
+    if (this.status.completedSubphases[phase]) {
+      delete this.status.completedSubphases[phase]
+    }
     this.status.updatedAt = Date.now()
 
     if (phase === "implementation") {
@@ -254,6 +273,108 @@ export class PipelineStateMachine {
     this.status = createInitialStatus()
     this.notify()
     this.autoSave()
+  }
+
+  /**
+   * Set a subphase within the current phase without advancing the main phase.
+   */
+  startSubphase(phase: Phase, subphase: string): { ok: boolean; error?: string } {
+    if (this.status.currentPhase !== phase) {
+      return { ok: false, error: `Cannot start subphase. Current phase is not "${PHASE_LABELS[phase]}".` }
+    }
+    this.status.currentSubphase = subphase
+    this.status.updatedAt = Date.now()
+    this.notify()
+    this.autoSave()
+    return { ok: true }
+  }
+
+  /**
+   * Mark a subphase as done for the current phase.
+   */
+  completeSubphase(subphase: string): { ok: boolean; error?: string } {
+    const phase = this.status.currentPhase
+    if (!phase) return { ok: false, error: "No active phase." }
+    if (this.status.currentSubphase !== subphase) {
+      return { ok: false, error: `Subphase "${subphase}" is not the current subphase.` }
+    }
+    if (!this.status.completedSubphases[phase]) {
+      this.status.completedSubphases[phase] = []
+    }
+    this.status.completedSubphases[phase] = [...this.status.completedSubphases[phase], subphase]
+    this.status.currentSubphase = null
+    this.status.updatedAt = Date.now()
+    this.notify()
+    this.autoSave()
+    return { ok: true }
+  }
+
+  /**
+   * Returns completed subphases for a phase.
+   */
+  getSubphases(phase: Phase): string[] {
+    return this.status.completedSubphases[phase] ?? []
+  }
+
+  /**
+   * Save current status as a checkpoint.
+   */
+  checkpoint(label: string): void {
+    this.status.checkpoints[label] = JSON.parse(JSON.stringify(this.status))
+    this.status.updatedAt = Date.now()
+    this.notify()
+    this.autoSave()
+  }
+
+  /**
+   * Restore status from a checkpoint.
+   */
+  rollback(label: string): { ok: boolean; error?: string } {
+    const saved = this.status.checkpoints[label]
+    if (!saved) return { ok: false, error: `Checkpoint "${label}" not found.` }
+    this.status = saved as PipelineStatus
+    this.status.updatedAt = Date.now()
+    this.notify()
+    this.autoSave()
+    return { ok: true }
+  }
+
+  /**
+   * Returns sorted checkpoint labels.
+   */
+  listCheckpoints(): string[] {
+    return Object.keys(this.status.checkpoints).sort()
+  }
+
+  /**
+   * Remove a checkpoint.
+   */
+  clearCheckpoint(label: string): void {
+    if (this.status.checkpoints[label]) {
+      delete this.status.checkpoints[label]
+      this.status.updatedAt = Date.now()
+      this.notify()
+      this.autoSave()
+    }
+  }
+
+  /**
+   * Add a risk to the current pipeline status.
+   */
+  addRisk(risk: { description: string; severity: "low" | "medium" | "high"; mitigation: string }): { id: string } {
+    const id = randomUUID()
+    this.status.risks = [...this.status.risks, { id, ...risk }]
+    this.status.updatedAt = Date.now()
+    this.notify()
+    this.autoSave()
+    return { id }
+  }
+
+  /**
+   * Returns all recorded risks.
+   */
+  listRisks(): Risk[] {
+    return [...this.status.risks]
   }
 
   /**

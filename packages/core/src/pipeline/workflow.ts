@@ -1,7 +1,28 @@
-import { Effect } from "effect"
 import { PipelineStateMachine, PHASE_ORDER, type Phase } from "./state"
 
 export type PipelineRunStatus = "pending" | "running" | "completed" | "failed" | "interrupted"
+
+// TODO: when state.ts is updated, replace these with Phase literals from PHASE_ORDER
+export const ROLLOUT_PHASE = "rollout"
+export const MONITORING_PHASE = "monitoring"
+
+export interface SubphaseRecord {
+  name: string
+  status: "completed" | "failed" | "skipped" | "pending"
+  recordedAt: number
+}
+
+export interface RiskRecord {
+  description: string
+  severity: "low" | "medium" | "high"
+  mitigation: string
+}
+
+export interface ComplianceRecord {
+  name: string
+  passed: boolean
+  detail?: string
+}
 
 export interface PipelineRunState {
   id: string
@@ -349,10 +370,20 @@ export class WorkflowEngine {
    * Make a decision at a decision point. Returns action to take.
    */
   async decide(
-    _runId: string,
+    runId: string,
     decision: DecisionDefinition,
     context: Record<string, unknown>,
   ): Promise<DecisionResult> {
+    const risks = this.getRisks(runId)
+    const highRisks = risks.filter((r) => r.severity === "high")
+    if (highRisks.length > 0) {
+      return {
+        action: "escalate",
+        reason: `High-severity risks detected: ${highRisks.map((r) => r.description).join("; ")}`,
+        adjustments: { risks: highRisks },
+      }
+    }
+
     if (decision.criteria.length === 0) {
       return { action: "continue", reason: "No criteria defined" }
     }
@@ -420,7 +451,18 @@ export class WorkflowEngine {
       this.recordStage(stage)
     }
 
-    if (status === "completed" && PHASE_ORDER.includes(stageName as Phase)) {
+    if (status === "completed" && stageName === "qa") {
+      const subphases = this.getSubphases(runId, stageName)
+      const allDone = subphases.length > 0 && subphases.every((s) => s.status === "completed" || s.status === "skipped")
+      const hasFailures = subphases.some((s) => s.status === "failed")
+      if (subphases.length === 0 || allDone) {
+        if (!hasFailures) {
+          const phase = stageName as Phase
+          this.pipelineState.startPhase(phase)
+          this.pipelineState.completePhase(phase)
+        }
+      }
+    } else if (status === "completed" && PHASE_ORDER.includes(stageName as Phase)) {
       const phase = stageName as Phase
       this.pipelineState.startPhase(phase)
       this.pipelineState.completePhase(phase)
@@ -436,5 +478,74 @@ export class WorkflowEngine {
   private recordStage(stage: PipelineStageState): void {
     const existing = this.stages.get(stage.pipelineRunId) ?? []
     this.stages.set(stage.pipelineRunId, [...existing, stage])
+  }
+
+  /**
+   * Record a sub-phase completion status for a stage (e.g. QA sub-phases).
+   */
+  recordSubphase(
+    runId: string,
+    stage: string,
+    subphase: string,
+    status: SubphaseRecord["status"],
+  ): void {
+    const run = this.runs.get(runId)
+    if (!run) return
+
+    const key = `${stage}Subphases`
+    const existing = (run.context[key] as SubphaseRecord[] | undefined) ?? []
+    const priorIdx = existing.findIndex((s) => s.name === subphase)
+    const record: SubphaseRecord = { name: subphase, status, recordedAt: Date.now() }
+    if (priorIdx !== -1) {
+      existing[priorIdx] = record
+    } else {
+      existing.push(record)
+    }
+    ;(run.context as Record<string, unknown>)[key] = existing
+  }
+
+  /**
+   * Get sub-phase records for a stage.
+   */
+  getSubphases(runId: string, stage: string): SubphaseRecord[] {
+    const run = this.runs.get(runId)
+    if (!run) return []
+    return (run.context[`${stage}Subphases`] as SubphaseRecord[] | undefined) ?? []
+  }
+
+  /**
+   * Record risk entries for a run.
+   */
+  recordRisks(runId: string, risks: RiskRecord[]): void {
+    const run = this.runs.get(runId)
+    if (!run) return
+    ;(run.context as Record<string, unknown>).risks = risks
+  }
+
+  /**
+   * Get recorded risks for a run.
+   */
+  getRisks(runId: string): RiskRecord[] {
+    const run = this.runs.get(runId)
+    if (!run) return []
+    return (run.context.risks as RiskRecord[] | undefined) ?? []
+  }
+
+  /**
+   * Record compliance check results for a run.
+   */
+  recordCompliance(runId: string, checks: ComplianceRecord[]): void {
+    const run = this.runs.get(runId)
+    if (!run) return
+    ;(run.context as Record<string, unknown>).compliance = checks
+  }
+
+  /**
+   * Get compliance check results for a run.
+   */
+  getCompliance(runId: string): ComplianceRecord[] {
+    const run = this.runs.get(runId)
+    if (!run) return []
+    return (run.context.compliance as ComplianceRecord[] | undefined) ?? []
   }
 }

@@ -1,10 +1,10 @@
 export * as Observability from "./observability"
 
 import { Option, Schema } from "effect"
-import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { dirname } from "node:path"
+import { dirname, join } from "node:path"
 import type { BacklogEngine } from "./backlog"
 
 export const EventLevel = Schema.Union([
@@ -21,12 +21,16 @@ export const ProdEvent = Schema.Struct({
   message: Schema.NonEmptyString,
   context: Schema.Record(Schema.String, Schema.Unknown),
   timestamp: Schema.Number,
+  fingerprint: Schema.NullOr(Schema.String),
+  traceId: Schema.NullOr(Schema.String),
+  spanId: Schema.NullOr(Schema.String),
 })
 export type ProdEvent = typeof ProdEvent.Type
 
 export interface ObservabilityConfig {
   maxEvents: number
   dedupeWindowMs: number
+  maxAuditLines: number
 }
 
 export interface RecordEventInput {
@@ -34,10 +38,13 @@ export interface RecordEventInput {
   level: EventLevel
   message: string
   context?: Record<string, unknown>
+  traceId?: string
+  spanId?: string
 }
 
 export class ObservabilityEngine {
   private readonly filePath: string
+  private readonly auditPath: string
   private readonly config: ObservabilityConfig
   private readonly backlog: BacklogEngine | undefined
   private events: ProdEvent[] = []
@@ -50,11 +57,19 @@ export class ObservabilityEngine {
     backlog?: BacklogEngine,
   ) {
     this.filePath = filePath
+    this.auditPath = join(dirname(filePath), "observability-audit.jsonl")
     this.config = {
       maxEvents: config?.maxEvents ?? 500,
       dedupeWindowMs: config?.dedupeWindowMs ?? 3600_000,
+      maxAuditLines: config?.maxAuditLines ?? 10000,
     }
     this.backlog = backlog
+  }
+
+  static fingerprint(source: string, level: string, message: string): string {
+    const stackLine = extractStack(message)
+    const payload = stackLine ?? message
+    return createHash("md5").update(`${source}:${level}:${payload}`).digest("hex").slice(0, 12)
   }
 
   private ensureLoaded(): void {
@@ -105,14 +120,23 @@ export class ObservabilityEngine {
       throw new Error(`source too long: got ${input.source.length} chars (max 100)`)
     }
     const now = Date.now()
-    const duplicate = this.events.find(
+    const fp = ObservabilityEngine.fingerprint(input.source, input.level, input.message)
+
+    const duplicateByFingerprint = this.events.find(
+      (event) =>
+        event.fingerprint === fp &&
+        now - event.timestamp <= this.config.dedupeWindowMs,
+    )
+    if (duplicateByFingerprint) return null
+
+    const duplicateByWindow = this.events.find(
       (event) =>
         event.source === input.source &&
         event.level === input.level &&
         event.message === input.message &&
         now - event.timestamp <= this.config.dedupeWindowMs,
     )
-    if (duplicate) return null
+    if (duplicateByWindow) return null
 
     const event: ProdEvent = {
       id: this.generateId(),
@@ -121,12 +145,16 @@ export class ObservabilityEngine {
       message: input.message,
       context: input.context ?? {},
       timestamp: now,
+      fingerprint: fp,
+      traceId: input.traceId ?? null,
+      spanId: input.spanId ?? null,
     }
     this.events.push(event)
     if (this.events.length > this.config.maxEvents) {
       this.events = this.events.slice(this.events.length - this.config.maxEvents)
     }
     this.persist()
+    this.appendAudit(event)
 
     if (input.level === "error") {
       try {
@@ -151,6 +179,45 @@ export class ObservabilityEngine {
     return counts
   }
 
+  async listByFingerprint(fingerprint: string, limit = 50): Promise<ProdEvent[]> {
+    this.ensureLoaded()
+    const filtered = this.events.filter((event) => event.fingerprint === fingerprint)
+    return [...filtered].sort((a, b) => b.timestamp - a.timestamp).slice(0, limit)
+  }
+
+  async streamAudit(fromTimestamp?: number, limit = 100): Promise<ProdEvent[]> {
+    if (!existsSync(this.auditPath)) return []
+    const lines = readFileSync(this.auditPath, "utf8").split("\n").filter(Boolean)
+    const events: ProdEvent[] = []
+    for (const line of lines) {
+      try {
+        const parsed = JSON.parse(line) as unknown
+        const event = Option.getOrNull(Schema.decodeUnknownOption(ProdEvent)(parsed))
+        if (event && (!fromTimestamp || event.timestamp >= fromTimestamp)) {
+          events.push(event)
+        }
+      } catch {
+        // skip corrupt lines
+      }
+    }
+    const sorted = [...events].sort((a, b) => b.timestamp - a.timestamp)
+    return sorted.slice(0, limit)
+  }
+
+  private appendAudit(event: ProdEvent): void {
+    mkdirSync(dirname(this.auditPath), { recursive: true })
+    appendFileSync(this.auditPath, JSON.stringify(event) + "\n")
+    this.rotateAudit()
+  }
+
+  private rotateAudit(): void {
+    if (!existsSync(this.auditPath)) return
+    const lines = readFileSync(this.auditPath, "utf8").split("\n").filter(Boolean)
+    if (lines.length <= this.config.maxAuditLines) return
+    const kept = lines.slice(lines.length - this.config.maxAuditLines)
+    writeFileSync(this.auditPath, kept.join("\n") + "\n")
+  }
+
   private async maybeCreateBacklogBug(input: RecordEventInput): Promise<void> {
     if (!this.backlog) return
     const title = `[${input.source}] ${input.message}`.slice(0, 300)
@@ -161,4 +228,9 @@ export class ObservabilityEngine {
     if (hasSimilar) return
     await this.backlog.add({ title, type: "bug", source: "observability" })
   }
+}
+
+function extractStack(message: string): string | null {
+  const match = message.match(/at .+/gm)
+  return match ? match[0] : null
 }
