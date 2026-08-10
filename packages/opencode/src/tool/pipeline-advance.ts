@@ -50,6 +50,8 @@ export const PipelineAdvanceTool = Tool.define<typeof Parameters, Metadata, neve
 
           if (params.status === "start") {
             result = pipelineState.startPhase(phase)
+            // marca o workspace dono deste pipeline (evita vazar estado entre projetos)
+            if (result.ok) pipelineState.setWorkspace(process.cwd())
           } else if (params.status === "complete") {
             result = pipelineState.completePhase(phase)
           } else {

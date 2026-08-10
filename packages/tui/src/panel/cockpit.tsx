@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/solid */
-import { createMemo, createSignal, For, Show, onMount } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useLocal } from "../context/local"
-import { useSync } from "../context/sync"
-import { useRoute } from "../context/route"
+import { usePipeline } from "../context/pipeline"
+import { useProject } from "../context/project"
 
 const PIPELINE = [
   "discovery", "research", "planning", "architecture", "debate",
@@ -16,18 +16,6 @@ const PHASE_LABELS: Record<string, string> = {
   architecture: "Arch", debate: "Deb", implementation: "Impl",
   review: "Rev", qa: "QA", security: "Sec",
   "self-critique": "SC", question: "Q?", audit: "Audit", delivery: "Del",
-}
-
-const AGENT_PHASE_MAP: Record<string, string> = {
-  planner: "planning", po: "planning", ceo: "planning",
-  architect: "architecture", cto: "architecture",
-  qa: "qa", "qa-breaker": "qa",
-  "code-reviewer": "review", "ux-reviewer": "review",
-  "design-critic": "review", performance: "review", a11y: "review",
-  security: "security", auditor: "audit",
-  refactor: "implementation", documentation: "delivery",
-  "release-manager": "delivery", teacher: "question",
-  mentor: "question", questionador: "question",
 }
 
 const PHASE_AGENT: Record<string, string> = {
@@ -51,61 +39,50 @@ type PhaseStatus = "pending" | "running" | "done" | "failed"
 export function Cockpit(props: { width: number }) {
   const { theme } = useTheme()
   const local = useLocal()
-  const sync = useSync()
-  const route = useRoute()
+  const pipeline = usePipeline()
+  const project = useProject()
 
-  const sessionID = createMemo(() => 
-    route.data.type === "session" ? route.data.sessionID : undefined
-  )
-
-  const pipelinePhaseFromTools = createMemo(() => {
-    const sid = sessionID()
-    if (!sid) return undefined
-    const messages = sync.data.message[sid] ?? []
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i]
-      if (msg.role !== "assistant") continue
-      const parts = sync.data.part[msg.id] ?? []
-      for (let j = parts.length - 1; j >= 0; j--) {
-        const part = parts[j]
-        if (part.type === "tool" && (part as any).tool === "pipeline-advance") {
-          // Input do tool: { phase, status } — detecta a fase em andamento
-          try {
-            const input = (part as any).state?.input
-            const data = input ? JSON.parse(input) : null
-            if (data?.phase) return data.phase
-          } catch {}
-          // Output do tool: JSON com currentPhase/phase — detecta após execução
-          try {
-            const output = (part as any).state?.output
-            const data = output ? JSON.parse(output) : null
-            if (data?.currentPhase) return data.currentPhase
-            if (data?.phase) return data.phase
-          } catch {}
-        }
-      }
-    }
-    return undefined
+  // Workspace dono do pipeline vs workspace atual
+  const currentWorkspace = createMemo(() => project.workspace.current() ?? project.instance.directory() ?? process.cwd())
+  const pipelineWorkspace = createMemo(() => pipeline.workspace)
+  const isOtherProject = createMemo(() => {
+    const pw = pipelineWorkspace()
+    const cw = currentWorkspace()
+    if (!pw) return false
+    return pw !== cw
   })
 
   const currentAgent = createMemo(() => local.agent.current())
+
+  // Fase real: pipeline state machine (arquivo) > agente ativo
   const pipelinePhase = createMemo(() => {
-    const fromTools = pipelinePhaseFromTools()
-    if (fromTools) return fromTools
+    const s = pipeline.status
+    if (!s) return undefined
+    if (s.currentPhase) return s.currentPhase
+    // sem fase ativa mas com fases completas — pipeline pausado/concluído
+    if (s.completedPhases.length > 0) return undefined
     const a = currentAgent()
-    return a ? AGENT_PHASE_MAP[a.name] : undefined
+    return a ? a.name : undefined
   })
 
   const phaseIdx = createMemo(() => {
     const p = pipelinePhase()
-    return p ? PIPELINE.indexOf(p as typeof PIPELINE[number]) : -1
+    if (p && PIPELINE.includes(p as (typeof PIPELINE)[number])) {
+      return PIPELINE.indexOf(p as (typeof PIPELINE)[number])
+    }
+    // nenhuma fase ativa: se há completadas, aponta para a próxima pendente
+    const done = pipeline.completedPhases.length
+    if (done > 0 && done < PIPELINE.length) return done
+    return -1
   })
 
   const phaseStatus = (i: number): PhaseStatus => {
+    const phase = PIPELINE[i]
+    if (pipeline.isFailed(phase)) return "failed"
+    if (pipeline.hasPhase(phase)) return "done"
+    if (pipeline.isRunning(phase)) return "running"
     const idx = phaseIdx()
-    if (idx < 0) return "pending"
-    if (i < idx) return "done"
-    if (i === idx) return "running"
+    if (idx >= 0 && i === idx) return "running"
     return "pending"
   }
 
@@ -128,8 +105,8 @@ export function Cockpit(props: { width: number }) {
   }
 
   const completedCount = createMemo(() => {
-    const idx = phaseIdx()
-    return idx < 0 ? 0 : idx
+    const s = pipeline.status
+    return s ? s.completedPhases.filter((p) => PIPELINE.includes(p as (typeof PIPELINE)[number])).length : 0
   })
 
   const bar = (pct: number, w: number) => {
@@ -139,22 +116,28 @@ export function Cockpit(props: { width: number }) {
   }
 
   const agentName = createMemo(() => currentAgent()?.name ?? "build")
+  const hasPipeline = createMemo(() => (pipeline.status?.completedPhases.length ?? 0) > 0 || pipeline.currentPhase !== null)
 
   return (
     <box flexShrink={0} gap={1} paddingRight={1}>
       <text fg={theme.primary}><b>MISSION</b></text>
 
-      <Show when={pipelinePhase() && phaseIdx() >= 0} fallback={
+      <Show when={isOtherProject()}>
+        <text fg={theme.error}>Pipeline de outro projeto: {pipelineWorkspace()}</text>
+      </Show>
+
+      <Show when={hasPipeline()} fallback={
         <text fg={theme.textMuted}>Agent: {agentName()} — no active pipeline</text>
       }>
-        <Show when={phaseIdx() >= 0}>
+        <Show when={phaseIdx() >= 0 || completedCount() > 0}>
           {(() => {
-            const b = bar(Math.round(((completedCount() + 1) / PIPELINE.length) * 100), Math.max(5, props.width - 6))
+            const pct = Math.round((completedCount() / PIPELINE.length) * 100)
+            const b = bar(pct, Math.max(5, props.width - 6))
             return (
               <box flexDirection="row" gap={0}>
                 <text fg={theme.primary}>{b.filled}</text>
                 <text fg={theme.textMuted}>{b.empty}</text>
-                <text fg={theme.text}>{` ${b.pct}%`}</text>
+                <text fg={theme.text}>{` ${pct}%`}</text>
               </box>
             )
           })()}
@@ -173,9 +156,7 @@ export function Cockpit(props: { width: number }) {
               <text fg={statusColor(st)}>
                 {statusSymbol(st)}
               </text>
-              <text
-                fg={statusColor(st)}
-              >
+              <text fg={statusColor(st)}>
                 {PHASE_ICONS[p]} {PHASE_LABELS[p]}
               </text>
               <Show when={st === "running"}>
@@ -187,7 +168,7 @@ export function Cockpit(props: { width: number }) {
 
         <text fg={theme.textMuted}>{"\u2500".repeat(12)}</text>
 
-        <Show when={phaseIdx() < PIPELINE.length - 1}>
+        <Show when={phaseIdx() >= 0 && phaseIdx() < PIPELINE.length - 1}>
           <text fg={theme.text}>Next: {PHASE_AGENT[PIPELINE[phaseIdx() + 1]]} ({PHASE_LABELS[PIPELINE[phaseIdx() + 1]]})</text>
         </Show>
       </Show>

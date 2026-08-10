@@ -128,6 +128,7 @@ export class LoopEngine {
     if (ok) {
       const start = this.pipeline.startPhase(p)
       if (!start.ok) return start.error ?? "startPhase failed"
+      this.pipeline.setWorkspace(process.cwd())
       const done = this.pipeline.completePhase(p)
       if (!done.ok) return done.error ?? "completePhase failed"
       return undefined

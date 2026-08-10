@@ -60,6 +60,8 @@ export interface PipelineStatus {
   gatesPassed: Record<string, boolean>
   checkpoints: Record<string, unknown>
   risks: Risk[]
+  /** workspace/projeto dono deste pipeline (evita vazar estado entre projetos) */
+  workspace?: string
   startedAt: number
   updatedAt: number
 }
@@ -194,6 +196,16 @@ export class PipelineStateMachine {
     this.notify()
     this.autoSave()
     return { ok: true }
+  }
+
+  /**
+   * Define o workspace/projeto dono deste pipeline.
+   */
+  setWorkspace(workspace: string): void {
+    this.status.workspace = workspace
+    this.status.updatedAt = Date.now()
+    this.notify()
+    this.autoSave()
   }
 
   /**

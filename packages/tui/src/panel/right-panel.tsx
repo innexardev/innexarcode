@@ -4,6 +4,8 @@ import { useRoute } from "../context/route"
 import { useSync } from "../context/sync"
 import { useTheme } from "../context/theme"
 import { useLocal } from "../context/local"
+import { usePipeline } from "../context/pipeline"
+import { useProject } from "../context/project"
 import { Locale } from "../util/locale"
 import { getScrollAcceleration } from "../util/scroll"
 import { useTuiConfig } from "../config"
@@ -102,6 +104,9 @@ export function RightPanel(props: { sessionID: string; width: number }) {
   const [sessionsOpen, setSessionsOpen] = createSignal(true)
   const [artifactsOpen, setArtifactsOpen] = createSignal(true)
 
+  const project = useProject()
+  const projectPath = createMemo(() => project.workspace.current() ?? project.instance.directory() ?? process.cwd())
+
   const artifactStore = createArtifactStore()
 
   // No sample artifacts — only real ones from the session
@@ -119,12 +124,30 @@ export function RightPanel(props: { sessionID: string; width: number }) {
     })),
   )
 
-  // Derive pipeline phase from current agent
+  // Derive pipeline phase from real persisted state (fallback: current agent)
+  const pipeline = usePipeline()
   const pipelinePhase = createMemo<PipelinePhase | undefined>(() => {
+    const real = pipeline.status?.currentPhase
+    if (real && PIPELINE_PHASES.includes(real as PipelinePhase)) return real as PipelinePhase
     const agent = local.agent.current()
     if (!agent) return undefined
     return AGENT_PHASE_MAP[agent.name]
   })
+
+  const phaseColor = (phase: PipelinePhase) => {
+    if (pipeline.isFailed(phase)) return theme.error
+    if (pipeline.hasPhase(phase)) return theme.success
+    const current = pipelinePhase()
+    if (current === phase) return theme.primary
+    return theme.textMuted
+  }
+
+  const phaseIcon = (phase: PipelinePhase) => {
+    if (pipeline.isFailed(phase)) return "✕"
+    if (pipeline.hasPhase(phase)) return "✓"
+    if (pipelinePhase() === phase) return "●"
+    return "○"
+  }
 
   const sessions = createMemo(() =>
     sync.data.session
@@ -139,26 +162,6 @@ export function RightPanel(props: { sessionID: string; width: number }) {
 
   function navigateToSession(id: string) {
     route.navigate({ type: "session", sessionID: id })
-  }
-
-  const phaseColor = (phase: PipelinePhase) => {
-    const current = pipelinePhase()
-    if (!current) return theme.textMuted
-    const currentIndex = PIPELINE_PHASES.indexOf(current)
-    const phaseIndex = PIPELINE_PHASES.indexOf(phase)
-    if (phaseIndex < currentIndex) return theme.success
-    if (phaseIndex === currentIndex) return theme.primary
-    return theme.textMuted
-  }
-
-  const phaseIcon = (phase: PipelinePhase) => {
-    const current = pipelinePhase()
-    if (!current) return "○"
-    const currentIndex = PIPELINE_PHASES.indexOf(current)
-    const phaseIndex = PIPELINE_PHASES.indexOf(phase)
-    if (phaseIndex < currentIndex) return "✓"
-    if (phaseIndex === currentIndex) return "●"
-    return "○"
   }
 
   return (
@@ -254,6 +257,9 @@ export function RightPanel(props: { sessionID: string; width: number }) {
               </text>
             </box>
             <Show when={pipelineOpen()}>
+              <Show when={pipeline.status && pipeline.workspace && pipeline.workspace !== (projectPath())}>
+                <text fg={theme.error}>⚠ pipeline de outro projeto: {pipeline.workspace}</text>
+              </Show>
               <For each={PIPELINE_PHASES}>
                 {(phase) => {
                   const agentForPhase = PHASE_AGENT_MAP[phase]

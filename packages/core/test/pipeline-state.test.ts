@@ -221,3 +221,33 @@ describe("PipelineStateMachine", () => {
     expect(sm.getStatus().currentPhase).toBeNull()
   })
 })
+
+describe("Pipeline workspace isolation", () => {
+  test("setWorkspace persists the owning project", () => {
+    const sm = new PipelineStateMachine()
+    sm.setWorkspace("/srv/project-a")
+    expect(sm.getStatus().workspace).toBe("/srv/project-a")
+  })
+
+  test("statusFromJson preserves workspace field", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pipeline-ws-test-"))
+    const path = join(dir, "state.json")
+    const sm = new PipelineStateMachine(path)
+    sm.setWorkspace("/srv/project-b")
+    sm.startPhase("discovery")
+    await sm.save(path)
+    const loaded = await PipelineStateMachine.load(path)
+    expect(loaded.getStatus().workspace).toBe("/srv/project-b")
+    expect(loaded.getStatus().currentPhase).toBe("discovery")
+  })
+
+  test("workspace survives save/load roundtrip", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pipeline-ws-test-"))
+    const path = join(dir, "state.json")
+    const sm = new PipelineStateMachine(path)
+    sm.setWorkspace("/srv/project-c")
+    await sm.save(path)
+    const loaded = await PipelineStateMachine.load(path)
+    expect(loaded.getStatus().workspace).toBe("/srv/project-c")
+  })
+})
