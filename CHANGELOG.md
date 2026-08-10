@@ -1,0 +1,26 @@
+# Changelog
+
+## Unreleased
+
+### Added
+- Senior-level quality gates (docs/melhorias-nivel-senior.md):
+  - `polish` — Definition of Done before Delivery (TODO/console.log/secrets in diff, docs updated)
+  - `a11y` — WCAG 2.1 AA scan for web/mobile templates (axe-core/pa11y)
+  - `licenses` — copyleft check on new dependencies (blocks GPL/AGPL/SSPL)
+  - `compat` — breaking API/schema changes require an ADR before Delivery
+  - `scope` — anti scope-creep: diff must stay within `.opencode/scope.json`
+- `polish` is now a required gate for the Delivery phase in PHASE_GATES and all templates
+- New `tech-lead` review subphase (cto persona) in every template's Review phase
+- Scripts: `packages/opencode/script/gates/{polish,a11y,licenses,compat,scope}.ts`
+
+## 1.22.0 — 2026-08-10
+
+### Added
+- Autonomous engineering modules: backlog (RICE + TTL claim), observability (dedupe + audit), loop engine, templates, workflow, state checkpoints/risks
+- 9 pipeline tools: backlog-add/next/list/claim/complete/cancel, observability-record, template-start, loop-run
+- Build.ts `--os` flag for cross-compilation; npm publish pipeline; CI macOS matrix; smoke test; semantic-release; unpublish-orphan script
+
+### Changed
+- Rebrand to iNNEXARCode: logos, wordmark, launcher title, update messages
+- Version fetch now tracks `opencode-engos-ai` on npm instead of `opencode-ai`
+- Postinstall rewritten: global installs, sibling node_modules, baseline fallback for non-AVX2, Windows `allow-scripts` support

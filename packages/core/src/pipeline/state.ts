@@ -32,7 +32,7 @@ export const PHASE_GATES: Partial<Record<Phase, string[]>> = {
   review: ["lint", "types", "complexity"],
   qa: ["build", "types", "tests"],
   security: ["build", "tests"],
-  delivery: ["build", "lint", "types", "tests", "security"],
+  delivery: ["build", "lint", "types", "tests", "security", "polish"],
 }
 
 /** Agents recommended for each phase */

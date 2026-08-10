@@ -24,9 +24,17 @@ export const VALID_GATES: string[] = [
   "security",
   "docker",
   "deploy",
+  "complexity",
+  "deps",
+  "duplication",
+  "polish",
+  "a11y",
+  "licenses",
+  "compat",
+  "scope",
 ]
 
-const DELIVERY_GATES = ["build", "lint", "types", "tests", "security"]
+const DELIVERY_GATES = ["build", "lint", "types", "tests", "security", "polish"]
 
 const KNOWN_AGENTS = new Set([
   "auto",
@@ -72,6 +80,7 @@ const QA_SUBPHASES: TemplatePhase[] = [
 const REVIEW_SUBPHASES: TemplatePhase[] = [
   phase("style", "Style Check", "code-reviewer", ["lint"]),
   phase("correctness", "Correctness", "code-reviewer", []),
+  phase("tech-lead", "Tech Lead Review", "cto", []),
 ]
 
 export const TEMPLATES: Record<string, PipelineTemplate> = {

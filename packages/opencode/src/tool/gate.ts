@@ -17,6 +17,11 @@ export const GateName = Schema.Union([
   Schema.Literal("complexity"),
   Schema.Literal("deps"),
   Schema.Literal("duplication"),
+  Schema.Literal("polish"),
+  Schema.Literal("a11y"),
+  Schema.Literal("licenses"),
+  Schema.Literal("compat"),
+  Schema.Literal("scope"),
 ])
 export type GateName = typeof GateName.Type
 
@@ -49,9 +54,9 @@ type Metadata = {
   gates: Schema.Schema.Type<typeof GateResult>[]
 }
 
-const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication"]
+const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope"]
 
-const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication"] as const
+const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope"] as const
 
 const WORKSPACE = "/root/opencode-engos"
 const BUN = "/root/.bun/bin/bun"
@@ -68,6 +73,11 @@ const GATE_ARGS: Record<string, [string, string[]]> = {
   complexity: ["/usr/bin/sh", ["-c", "npx eslint --rule 'complexity: [\"error\", 10]' src/ 2>&1 || npx complexify src/ 2>&1 || echo 'no-complexity-tool'"]],
   deps: ["/usr/bin/sh", ["-c", "npx madge --circular src/ 2>&1 || npx dpdm src/**/*.ts --tree false --warning false 2>&1 || echo 'no-deps-tool'"]],
   duplication: ["/usr/bin/sh", ["-c", "npx jscpd src/ --threshold 10 2>&1 || echo 'no-duplication-tool'"]],
+  polish: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/polish.ts"]],
+  a11y: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/a11y.ts"]],
+  licenses: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/licenses.ts"]],
+  compat: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/compat.ts"]],
+  scope: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/scope.ts"]],
 }
 
 async function execFileAsync(bin: string, args: string[], cwd: string, timeout: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -157,7 +167,7 @@ export const GateTool = Tool.define<typeof Parameters, Metadata, never>(
   Effect.gen(function* () {
     return {
       description:
-        "Run quality gates (build, lint, types, tests, coverage, security, docker, deploy, complexity, deps, duplication) and return results. Blocks delivery if any fail. Use autoFix=true to auto-apply eslint/prettier fixes before the lint check.",
+        "Run quality gates (build, lint, types, tests, coverage, security, docker, deploy, complexity, deps, duplication, polish, a11y, licenses, compat, scope) and return results. Blocks delivery if any fail. polish = senior DoD (no TODO/console.log/secrets, docs updated). a11y = WCAG for web/mobile. licenses = copyleft check on new deps. compat = breaking API/schema requires ADR. scope = diff within .opencode/scope.json. Use autoFix=true to auto-apply eslint/prettier fixes before the lint check.",
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
