@@ -34,3 +34,8 @@ Core types (Pipeline, Agent, Gate, Context) live in @opencode-ai/core. Implement
 - **tech-lead** — nova sub-fase de Review (agente cto) nos templates: avalia trade-offs, over-engineering, convenções do repo, legibilidade em 6 meses.
 - Todos os gates detectam committed + staged + unstaged + untracked files (branches com HEAD == base não perdem o diff).
 - Scripts em `packages/opencode/script/gates/`, registrados em `packages/opencode/src/tool/gate.ts`.
+- **i18n** — WARN quando frontend adiciona UI nova sem lib i18n (i18next, next-intl, react-intl, vue-i18n, @lingui).
+- **seo** — FAIL bloqueante: página nova sem title/description/OG; WARN: sitemap.xml/robots.txt ausentes, rotas com ID cru.
+- **market** — condicional (nunca bloqueia bugfix): detecta endpoint/tela/fluxo pricing novo e verifica demanda registrada (backlog, PRD, docs de requisitos); sem lastro → WARN com orientação de backlog-add.
+- **infra-cost** — quando IaC (*.tf/*.hcl) muda no diff, roda `infracost breakdown`; WARN se infracost não instalado.
+- Todos os gates de produto (seo/market/i18n) checam committed + staged + unstaged.

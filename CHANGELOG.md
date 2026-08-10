@@ -9,9 +9,13 @@
   - `licenses` — copyleft check on new dependencies (blocks GPL/AGPL/SSPL)
   - `compat` — breaking API/schema changes require an ADR before Delivery
   - `scope` — anti scope-creep: diff must stay within `.opencode/scope.json`
+  - `i18n` — translation readiness for frontend (WARN when UI files added without i18n lib)
+  - `seo` — meta tags (title/description/OG) required on new pages, sitemap/robots WARN
+  - `market` — conditional demand validation: user-facing features without registered demand get WARN
+  - `infra-cost` — IaC changes trigger infracost estimate (WARN if not installed)
 - `polish` is now a required gate for the Delivery phase in PHASE_GATES and all templates
 - New `tech-lead` review subphase (cto persona) in every template's Review phase
-- Scripts: `packages/opencode/script/gates/{polish,a11y,licenses,compat,scope}.ts`
+- Scripts: `packages/opencode/script/gates/{polish,a11y,licenses,compat,scope,i18n,seo,market,infra-cost}.ts`
 
 ## 1.22.0 — 2026-08-10
 

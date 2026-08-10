@@ -17,7 +17,7 @@
 | 9 | Respeitar escopo (evitar scope creep) | 🟢 Implementado |
 | 10 | Gates de mercado/negócio | 🟢 Implementado |
 | 11 | Agentes especialistas com roteamento | 🔴 Roadmap |
-| 12 | Gates de SEO, a11y, onboarding | 🟢 Implementado (a11y) |
+| 12 | Gates de SEO, a11y, onboarding | 🟢 Implementado (a11y + seo) |
 | 13 | Execução paralela isolada | 🔴 Roadmap |
 
 ## Detalhes por Seção
@@ -72,7 +72,13 @@
 - Custo x Benefício: RICE no backlog já considera effort vs impacto
 - Compatibilidade retroativa: gate `compat` — superfície pública alterada (protocol, generated, schema.ts, api.ts, openapi, migrations com ALTER/DROP) exige ADR documentado antes do Delivery
 - Licenças de dependências: gate `licenses` — falha em GPL/AGPL/SSPL/CC-BY-SA quando novas deps entram
-- i18n readiness: checklist para templates web/mobile (manual)
+- i18n readiness: gate `i18n` — WARN quando frontend adiciona UI nova sem biblioteca i18n
+- Custo de infraestrutura: gate `infra-cost` — roda `infracost breakdown` quando IaC muda; WARN se infracost não instalado
+
+### 12. SEO + Acessibilidade
+- Gate `a11y` formal (seção 5/12.3): WCAG 2.1 AA via axe-core/pa11y; scan ao vivo com OPENCODE_A11Y_URL
+- Gate `seo` (seção 12.2): páginas novas exigem title + description + OG (FAIL bloqueante); sitemap.xml/robots.txt ausentes e rotas com ID cru → WARN
+- Gate `market` (seção 10, Pesquisa de Mercado condicional): detecta endpoint/tela/fluxo pricing novo e verifica demanda registrada (backlog, PRD, docs de requisitos); sem lastro → WARN orientando registrar no backlog. Nunca bloqueia bugfix/tarefa técnica.
 
 ### 11-13. Roadmap Futuro
 - Agentes especialistas com roteamento automático
@@ -99,4 +105,16 @@ OPENCODE_A11Y_URL=http://localhost:3000 /gate run-gate a11y
 
 # Anti scope creep (declare .opencode/scope.json no projeto)
 /gate run-gate scope
+
+# i18n readiness (frontend)
+/gate run-gate i18n
+
+# SEO (web/product): meta tags nas páginas novas
+/gate run-gate seo
+
+# Demanda de mercado (condicional: só dispara com feature user-facing nova)
+/gate run-gate market
+
+# Custo de infraestrutura (roda infracost quando IaC muda)
+/gate run-gate infra-cost
 ```
