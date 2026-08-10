@@ -23,3 +23,14 @@ Core types (Pipeline, Agent, Gate, Context) live in @opencode-ai/core. Implement
 - **PipelineTemplates** — project types: web, data, infra, product, mobile, api; phases reference the canonical agent roster (validate() checks against KNOWN_AGENTS).
 - **Workflow** — `getState`/`decide` now implemented; `state` gained `reload()`.
 - **Tools** — 9 new tools registered: backlog-add, backlog-next, backlog-list, backlog-claim, backlog-complete, backlog-cancel, observability-record, template-start, loop-run.
+
+## Senior Quality Gates (2026-08-10)
+
+- **polish** — Definition of Done antes do Delivery: falha em TODO/FIXME/console.log/segredos hardcoded no diff; WARN em URLs hardcoded sem .env.example, build artifacts e CHANGELOG/docs não atualizados quando src/ mudou. Obrigatório em `PHASE_GATES.delivery` e em `DELIVERY_GATES` dos templates.
+- **a11y** — WCAG 2.1 AA: not applicable para não-frontend; WARN quando frontend sem axe-core/pa11y/lighthouse; scan ao vivo via `OPENCODE_A11Y_URL`.
+- **licenses** — blocagens GPL/AGPL/SSPL/CC-BY-SA quando novas dependências entram (diff de lockfile); fallback para inspeção de node_modules quando license-checker indisponível.
+- **compat** — superfície pública alterada (protocol, generated, .schema.ts, .api.ts, openapi, .proto, migrations ALTER/DROP) exige ADR em docs/adr/ antes do Delivery.
+- **scope** — anti scope-creep: `.opencode/scope.json` declara arquivos permitidos; diff fora de escopo falha e orienta criar item de backlog.
+- **tech-lead** — nova sub-fase de Review (agente cto) nos templates: avalia trade-offs, over-engineering, convenções do repo, legibilidade em 6 meses.
+- Todos os gates detectam committed + staged + unstaged + untracked files (branches com HEAD == base não perdem o diff).
+- Scripts em `packages/opencode/script/gates/`, registrados em `packages/opencode/src/tool/gate.ts`.
