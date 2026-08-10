@@ -13,6 +13,10 @@
   - `seo` — meta tags (title/description/OG) required on new pages, sitemap/robots WARN
   - `market` — conditional demand validation: user-facing features without registered demand get WARN
   - `infra-cost` — IaC changes trigger infracost estimate (WARN if not installed)
+  - `onboarding` — new client-facing pages must declare onboarding needs (features.json/onboarding.md/inline)
+  - `analytics` — new client-facing pages must declare tracking events (analytics.json/analytics.md/track calls)
+- `dispatcher-route` tool — routes specialist agents by diff file type, goal keywords and project template; computes safe parallel partitions by top-level directory
+- Specialist registry: frontend, backend, database, infra, security, mobile, data, qa-test, design-system, ux-writing, support
 - `polish` is now a required gate for the Delivery phase in PHASE_GATES and all templates
 - New `tech-lead` review subphase (cto persona) in every template's Review phase
 - Scripts: `packages/opencode/script/gates/{polish,a11y,licenses,compat,scope,i18n,seo,market,infra-cost}.ts`
