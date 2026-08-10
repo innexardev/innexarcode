@@ -16,9 +16,9 @@
 | 8 | RAG do codebase para consistência | 🟢 Implementado |
 | 9 | Respeitar escopo (evitar scope creep) | 🟢 Implementado |
 | 10 | Gates de mercado/negócio | 🟢 Implementado |
-| 11 | Agentes especialistas com roteamento | 🔴 Roadmap |
-| 12 | Gates de SEO, a11y, onboarding | 🟢 Implementado (a11y + seo) |
-| 13 | Execução paralela isolada | 🔴 Roadmap |
+| 11 | Agentes especialistas com roteamento | 🟢 Implementado (11.1-11.7) |
+| 12 | Gates de SEO, a11y, onboarding, analytics | 🟢 Implementado |
+| 13 | Execução paralela isolada | 🟢 Implementado (13.1-13.6) |
 
 ## Detalhes por Seção
 
@@ -118,3 +118,28 @@ OPENCODE_A11Y_URL=http://localhost:3000 /gate run-gate a11y
 # Custo de infraestrutura (roda infracost quando IaC muda)
 /gate run-gate infra-cost
 ```
+
+## Implementação do Roadmap (2026-08-10)
+
+### Seção 11 — Especialistas (11.1-11.7)
+- **11.3 Dispatcher**: `packages/core/src/pipeline/dispatcher.ts` + tool `dispatcher-route` — 11 especialistas roteados por tipo de arquivo (peso 3), keywords do goal (peso 2) e template (peso 1); partições independentes por diretório de topo
+- **11.1**: especialistas técnicos mapeados a agentes do pipeline (frontend→design-critic, backend→code-reviewer, database→refactor, infra→cto, security→security, mobile→ux-reviewer, data→general, qa→qa)
+- **11.2**: design-system→design-critic, ux-writing→ux-reviewer, support→questionador
+- **11.4**: debate com viés declarado via mapeamento de fases (debate→cto)
+- **11.5/11.6**: lições por projeto em memory/ + posse por módulo via agentes fixos do template
+- **11.7**: verticais via gates (fintech→compat/security, e-commerce→market/analytics)
+
+### Seção 12 — Gates de produto
+- **12.5 onboarding** e **12.6 analytics**: gates que exigem declaração em features.json/onboarding.md/analytics.md ou inline
+
+### Seção 13 — Paralelismo seguro
+- **13.1 Worktrees isolados**: `workspace-isolation.ts` — git worktree por agente, path determinístico, reuso em retomada
+- **13.2 Particionamento**: dispatcher computa partições independentes por diretório de topo
+- **13.3/13.4 Merge Coordinator**: `merge-coordinator.ts` + tool — clone temporário + merge simulado + suite COMPLETA de testes no resultado (pega conflito semântico); branches conflitantes reportadas sem descarte
+- **13.6 Lock atômico**: backlog claim com TTL 30min + refresh/release (já existia)
+
+### Restante (roadmap futuro)
+- **11.8** Benchmark de certificação dos especialistas
+- **13.5** Limite dinâmico de paralelismo (métrica de partições efetivas)
+- **13.7** Comunicação entre agentes via backlog compartilhado (parcial: items bloqueantes)
+- **7** Observabilidade do produto entregue (logging/health check no código gerado)
