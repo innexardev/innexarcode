@@ -16,6 +16,10 @@ function remoteID(remote: string) {
   return ProjectV2.ID.make(Hash.fast(`git-remote:${remote}`))
 }
 
+function localID(directory: string) {
+  return ProjectV2.ID.make(Hash.fast(`local-path:${directory}`))
+}
+
 function abs(value: string) {
   return AbsolutePath.make(value)
 }
@@ -39,7 +43,7 @@ async function rootCommit(dir: string) {
 }
 
 describe("ProjectV2.resolve", () => {
-  it.live("returns global for non-git directory", () =>
+  it.live("returns local id for non-git directory", () =>
     Effect.gen(function* () {
       const tmp = yield* Effect.acquireRelease(
         Effect.promise(() => tmpdir()),
@@ -49,7 +53,7 @@ describe("ProjectV2.resolve", () => {
 
       const result = yield* project.resolve(abs(tmp.path))
 
-      expect(result.id).toBe(ProjectV2.ID.make("global"))
+      expect(result.id).toBe(localID(tmp.path))
       expect(path.resolve(result.directory)).toBe(path.parse(tmp.path).root)
       expect(result.previous).toBeUndefined()
       expect(result.vcs).toBeUndefined()

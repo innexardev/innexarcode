@@ -401,7 +401,7 @@ describe("util.flock", () => {
   })
 
   test("fails clearly on unwritable lock roots", async () => {
-    if (process.platform === "win32") return
+    if (process.platform === "win32" || process.getuid?.() === 0) return
 
     await using tmp = await tmpdir()
     const dir = path.join(tmp.path, "locks")

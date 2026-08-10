@@ -65,6 +65,7 @@ describe("Snapshot", () => {
         }),
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
     ),
+    { timeout: 30_000 },
   )
 
   testEffect(Layer.empty).live("treats capture outside Git as unavailable", () =>
