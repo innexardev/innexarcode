@@ -38,6 +38,7 @@ export const VALID_GATES: string[] = [
   "infra-cost",
   "onboarding",
   "analytics",
+  "observability",
 ]
 
 const DELIVERY_GATES = ["build", "lint", "types", "tests", "security", "polish"]
@@ -81,6 +82,12 @@ function phase(
 const QA_SUBPHASES: TemplatePhase[] = [
   phase("unit", "Unit Tests", "qa", ["tests"]),
   phase("integration", "Integration Tests", "qa", ["tests"]),
+]
+
+const QA_OBSERVABILITY_SUBPHASES: TemplatePhase[] = [
+  phase("unit", "Unit Tests", "qa", ["tests"]),
+  phase("integration", "Integration Tests", "qa", ["tests"]),
+  phase("observability", "Observability (health, logging, metrics)", "performance", ["observability"]),
 ]
 
 const REVIEW_SUBPHASES: TemplatePhase[] = [
@@ -208,7 +215,7 @@ export const TEMPLATES: Record<string, PipelineTemplate> = {
       phase("review", "Review", "code-reviewer", ["lint", "types"], REVIEW_SUBPHASES),
       phase("security", "Security", "security", ["security", "build", "tests"]),
       phase("compliance", "Compliance", "security", ["security"]),
-      phase("qa", "QA", "qa", ["build", "tests"], QA_SUBPHASES),
+      phase("qa", "QA", "qa", ["build", "tests"], QA_OBSERVABILITY_SUBPHASES),
       phase("rollout", "Rollout", "release-manager", ["deploy"]),
       phase("delivery", "Delivery", "release-manager", DELIVERY_GATES),
     ],

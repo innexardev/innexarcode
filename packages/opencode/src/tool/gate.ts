@@ -28,6 +28,7 @@ export const GateName = Schema.Union([
   Schema.Literal("infra-cost"),
   Schema.Literal("onboarding"),
   Schema.Literal("analytics"),
+  Schema.Literal("observability"),
 ])
 export type GateName = typeof GateName.Type
 
@@ -60,9 +61,9 @@ type Metadata = {
   gates: Schema.Schema.Type<typeof GateResult>[]
 }
 
-const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics"]
+const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability"]
 
-const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics"] as const
+const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability"] as const
 
 const WORKSPACE = "/root/opencode-engos"
 const BUN = "/root/.bun/bin/bun"
@@ -90,6 +91,7 @@ const GATE_ARGS: Record<string, [string, string[]]> = {
   "infra-cost": ["/root/.bun/bin/bun", ["packages/opencode/script/gates/infra-cost.ts"]],
   onboarding: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/onboarding.ts"]],
   analytics: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/analytics.ts"]],
+  observability: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/observability.ts"]],
 }
 
 async function execFileAsync(bin: string, args: string[], cwd: string, timeout: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -179,7 +181,7 @@ export const GateTool = Tool.define<typeof Parameters, Metadata, never>(
   Effect.gen(function* () {
     return {
       description:
-        "Run quality gates (build, lint, types, tests, coverage, security, docker, deploy, complexity, deps, duplication, polish, a11y, licenses, compat, scope, i18n, seo, market, infra-cost, onboarding, analytics) and return results. Blocks delivery if any fail. polish = senior DoD (no TODO/console.log/secrets, docs updated). a11y = WCAG for web/mobile. licenses = copyleft check on new deps. compat = breaking API/schema requires ADR. scope = diff within .opencode/scope.json. i18n = translation readiness for frontend. seo = meta tags/sitemap for web. market = registered demand for user-facing features (conditional WARN). infra-cost = cloud cost estimate for IaC changes. onboarding = new client-facing pages declare onboarding needs. analytics = new client-facing pages declare tracking events. Use autoFix=true to auto-apply eslint/prettier fixes before the lint check.",
+        "Run quality gates (build, lint, types, tests, coverage, security, docker, deploy, complexity, deps, duplication, polish, a11y, licenses, compat, scope, i18n, seo, market, infra-cost, onboarding, analytics, observability) and return results. Blocks delivery if any fail. polish = senior DoD (no TODO/console.log/secrets, docs updated). a11y = WCAG for web/mobile. licenses = copyleft check on new deps. compat = breaking API/schema requires ADR. scope = diff within .opencode/scope.json. i18n = translation readiness for frontend. seo = meta tags/sitemap for web. market = registered demand for user-facing features (conditional WARN). infra-cost = cloud cost estimate for IaC changes. onboarding = new client-facing pages declare onboarding needs. analytics = new client-facing pages declare tracking events. observability = delivered product has health check (required for services), structured logging and metrics. Use autoFix=true to auto-apply eslint/prettier fixes before the lint check.",
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {

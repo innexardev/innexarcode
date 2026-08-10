@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- Gate de `observability` — verifica se serviços/APIs possuem endpoint de health check (`/health`, `/healthz`, `/ready`), logging estruturado e métricas.
+- Ferramenta `specialist-certify` (`packages/opencode/src/tool/specialist-certify.ts`) e módulo `Certification` (`packages/core/src/pipeline/certify.ts`) — benchmark de certificação de agentes especialistas com notas A-F.
+- Subfase de `observability` na fase de QA do template `api`.
 - Senior-level quality gates (docs/melhorias-nivel-senior.md):
   - `polish` — Definition of Done before Delivery (TODO/console.log/secrets in diff, docs updated)
   - `a11y` — WCAG 2.1 AA scan for web/mobile templates (axe-core/pa11y)

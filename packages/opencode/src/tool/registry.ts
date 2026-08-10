@@ -43,6 +43,7 @@ import { TemplateStartTool } from "./template-start"
 import { LoopRunTool } from "./loop-run"
 import { DispatcherRouteTool } from "./dispatcher-route"
 import { MergeCoordinatorTool } from "./merge-coordinator"
+import { SpecialistCertifyTool } from "./specialist-certify"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -137,6 +138,7 @@ const layer = Layer.effect(
     const looprun = yield* LoopRunTool
     const dispatcherroute = yield* DispatcherRouteTool
     const mergecoordinator = yield* MergeCoordinatorTool
+    const specialistcertify = yield* SpecialistCertifyTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -256,6 +258,7 @@ const layer = Layer.effect(
           loopRun: Tool.init(looprun),
           dispatcherRoute: Tool.init(dispatcherroute),
           mergeCoordinator: Tool.init(mergecoordinator),
+          specialistCertify: Tool.init(specialistcertify),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
