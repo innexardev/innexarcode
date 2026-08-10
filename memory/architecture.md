@@ -43,3 +43,4 @@ Core types (Pipeline, Agent, Gate, Context) live in @opencode-ai/core. Implement
 - **onboarding gate (12.5)** — feature client-facing nova sem declaração de onboarding (features.json, onboarding.md, ou `// onboarding: true|false` inline) → WARN.
 - **analytics gate (12.6)** — feature client-facing nova sem eventos (analytics.json, analytics.md, ou track()/gtag/posthog/amplitude inline) → WARN.
 - Dispatcher + 2 gates = seções 11.3, 12.5, 12.6 do docs/melhorias-nivel-senior.md.
+- **MergeCoordinator (13.3/13.4)** — `packages/core/src/pipeline/merge-coordinator.ts` + tool `merge-coordinator`: valida integração de branches paralelas SEM merge cego. Clona o repo em dir temporário, faz merge simulado sequencial (mais antiga primeiro), roda a suite de testes COMPLETA no resultado (pega conflito semântico entre diffs individualmente válidos), reporta branches conflitantes sem descartar. Nunca toca o working tree real.
