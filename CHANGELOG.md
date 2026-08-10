@@ -17,6 +17,8 @@
   - `analytics` — new client-facing pages must declare tracking events (analytics.json/analytics.md/track calls)
 - `dispatcher-route` tool — routes specialist agents by diff file type, goal keywords and project template; computes safe parallel partitions by top-level directory
 - Specialist registry: frontend, backend, database, infra, security, mobile, data, qa-test, design-system, ux-writing, support
+- `merge-coordinator` tool — validates parallel branch integration: temp clone + simulated sequential merge + FULL test suite on the merged result; reports conflicted branches without discarding them
+- TUI right panel pipeline fix — now reads the real persisted state (`~/.opencode/pipeline-state.json`, same path as PipelineStateMachine) with 2s polling; shows real completed/running/failed phases, progress bar and %; warns "Pipeline de outro projeto" when the state belongs to a different workspace (pipeline-advance and LoopEngine now set the workspace owner)
 - `polish` is now a required gate for the Delivery phase in PHASE_GATES and all templates
 - New `tech-lead` review subphase (cto persona) in every template's Review phase
 - Scripts: `packages/opencode/script/gates/{polish,a11y,licenses,compat,scope,i18n,seo,market,infra-cost}.ts`
