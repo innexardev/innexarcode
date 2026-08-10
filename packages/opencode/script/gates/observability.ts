@@ -14,10 +14,13 @@
  *  - Frontend puro (sem server): not applicable
  *  - CLI/ferramenta sem server: verifica apenas logging
  *
+ * Suporte a monorepos: agrega dependencies de raiz + packages/*, apps/* e
+ * services/* (collectDeps) e detecta indicadores de serviço em cada um.
+ *
  * Exit 0 = ok/not applicable. Exit 1 = serviço sem health check.
  */
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 const WORKSPACE = process.env.OPENCODE_WORKSPACE ?? "/root/opencode-engos"
@@ -29,7 +32,29 @@ if (!existsSync(pkgPath)) {
 }
 
 const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"))
-const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
+
+// Agrega dependencies + devDependencies da raiz e de todos os subpacotes
+// (packages/*, apps/*, services/*) num único Record. Ignora node_modules.
+function collectDeps(): Record<string, string> {
+  const all: Record<string, string> = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
+  for (const sub of ["packages", "apps", "services"]) {
+    const dir = join(WORKSPACE, sub)
+    if (!existsSync(dir)) continue
+    for (const entry of readdirSync(dir)) {
+      const pkgFile = join(dir, entry, "package.json")
+      if (entry === "node_modules" || !existsSync(pkgFile)) continue
+      try {
+        const subPkg = JSON.parse(readFileSync(pkgFile, "utf-8"))
+        Object.assign(all, subPkg.dependencies ?? {}, subPkg.devDependencies ?? {})
+      } catch {
+        // package.json inválido — ignora
+      }
+    }
+  }
+  return all
+}
+
+const deps = collectDeps()
 
 const LOGGING_LIBS = ["pino", "winston", "morgan", "bunyan", "log4js", "loglevel", "@google-cloud/logging", "pino-http"]
 const METRICS_LIBS = ["prom-client", "@opentelemetry", "metrics", "statsd-client", "express-prom-bundle", "@promster"]
@@ -47,14 +72,28 @@ const HEALTH_PATTERNS = [
 const hasLogging = Object.keys(deps).some((d) => LOGGING_LIBS.some((l) => d === l || d.startsWith(`${l}/`)))
 const hasMetrics = Object.keys(deps).some((d) => METRICS_LIBS.some((l) => d === l || d.startsWith(`${l}/`)))
 
-// Detecta se é serviço (tem server/API)
+// Indicadores de serviço (server/API) em um diretório
+function hasServiceMarkers(dir: string): boolean {
+  return existsSync(join(dir, "src", "server")) ||
+    existsSync(join(dir, "src", "api")) ||
+    existsSync(join(dir, "src", "index.ts")) ||
+    existsSync(join(dir, "src", "index.js")) ||
+    existsSync(join(dir, "server")) ||
+    existsSync(join(dir, "app", "api"))
+}
+
+// Detecta se é serviço (tem server/API) — na raiz ou em packages/*, apps/*, services/*
 const isService = Object.keys(deps).some((d) => /^(express|fastify|koa|hono|next|nuxt|nestjs|@hapi|http)/.test(d)) ||
-  existsSync(join(WORKSPACE, "src", "server")) ||
-  existsSync(join(WORKSPACE, "src", "api")) ||
-  existsSync(join(WORKSPACE, "src", "index.ts")) ||
-  existsSync(join(WORKSPACE, "src", "index.js")) ||
-  existsSync(join(WORKSPACE, "server")) ||
-  existsSync(join(WORKSPACE, "app", "api"))
+  hasServiceMarkers(WORKSPACE) ||
+  ["packages", "apps", "services"].some((sub) => {
+    const dir = join(WORKSPACE, sub)
+    if (!existsSync(dir)) return false
+    return readdirSync(dir).some((entry) => {
+      if (entry === "node_modules") return false
+      const pkgDir = join(dir, entry)
+      return statSync(pkgDir).isDirectory() && hasServiceMarkers(pkgDir)
+    })
+  })
 
 function scanForHealth(dir: string, depth: number): boolean {
   if (depth > 4) return false
