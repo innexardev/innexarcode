@@ -39,3 +39,7 @@ Core types (Pipeline, Agent, Gate, Context) live in @opencode-ai/core. Implement
 - **market** — condicional (nunca bloqueia bugfix): detecta endpoint/tela/fluxo pricing novo e verifica demanda registrada (backlog, PRD, docs de requisitos); sem lastro → WARN com orientação de backlog-add.
 - **infra-cost** — quando IaC (*.tf/*.hcl) muda no diff, roda `infracost breakdown`; WARN se infracost não instalado.
 - Todos os gates de produto (seo/market/i18n) checam committed + staged + unstaged.
+- **Dispatcher (11.3)** — `packages/core/src/pipeline/dispatcher.ts` + tool `dispatcher-route`: roteia especialistas (frontend, backend, database, infra, security, mobile, data, qa-test, design-system, ux-writing, support) por tipo de arquivo (peso 3), keywords do goal (peso 2) e template (peso 1); computa partições independentes por diretório de topo (paralelismo seguro 13.2); mapeia fase → agente do pipeline.
+- **onboarding gate (12.5)** — feature client-facing nova sem declaração de onboarding (features.json, onboarding.md, ou `// onboarding: true|false` inline) → WARN.
+- **analytics gate (12.6)** — feature client-facing nova sem eventos (analytics.json, analytics.md, ou track()/gtag/posthog/amplitude inline) → WARN.
+- Dispatcher + 2 gates = seções 11.3, 12.5, 12.6 do docs/melhorias-nivel-senior.md.

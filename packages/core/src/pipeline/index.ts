@@ -16,6 +16,7 @@ import * as Observability from "./observability"
 import * as Templates from "./templates"
 import * as Todo from "./todo"
 import * as Workflow from "./workflow"
+import * as Dispatcher from "./dispatcher"
 
 const persistPath =
   process.env.PIPELINE_STATE_PATH ?? `${homedir()}/.opencode/pipeline-state.json`
@@ -27,6 +28,6 @@ export async function reloadPipelineState(): Promise<PipelineStatus> {
   return await pipelineState.reload()
 }
 
-export { PipelineStateMachine, createInitialStatus, statusFromJson, Backlog, Loop, Observability, Templates, Todo, Workflow }
+export { PipelineStateMachine, createInitialStatus, statusFromJson, Backlog, Loop, Observability, Templates, Todo, Workflow, Dispatcher }
 export { PHASE_ORDER, PHASE_LABELS, PHASE_GATES, PHASE_AGENT }
 export type { Phase, PipelineStatus }

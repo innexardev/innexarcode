@@ -36,6 +36,8 @@ export const VALID_GATES: string[] = [
   "seo",
   "market",
   "infra-cost",
+  "onboarding",
+  "analytics",
 ]
 
 const DELIVERY_GATES = ["build", "lint", "types", "tests", "security", "polish"]

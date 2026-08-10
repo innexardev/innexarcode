@@ -41,6 +41,7 @@ import { BacklogCancelTool } from "./backlog-cancel"
 import { ObservabilityRecordTool } from "./observability-record"
 import { TemplateStartTool } from "./template-start"
 import { LoopRunTool } from "./loop-run"
+import { DispatcherRouteTool } from "./dispatcher-route"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -133,6 +134,7 @@ const layer = Layer.effect(
     const observabilityrecord = yield* ObservabilityRecordTool
     const templatestart = yield* TemplateStartTool
     const looprun = yield* LoopRunTool
+    const dispatcherroute = yield* DispatcherRouteTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -250,6 +252,7 @@ const layer = Layer.effect(
           observabilityRecord: Tool.init(observabilityrecord),
           templateStart: Tool.init(templatestart),
           loopRun: Tool.init(looprun),
+          dispatcherRoute: Tool.init(dispatcherroute),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
