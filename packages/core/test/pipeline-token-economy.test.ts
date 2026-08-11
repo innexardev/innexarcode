@@ -148,6 +148,47 @@ describe("TokenEconomy", () => {
     ).toBe(6)
   })
 
+  test("budgetTokens excludes cached reads (only what costs money)", () => {
+    expect(
+      TokenEconomy.budgetTokens({
+        requests: 0,
+        input_tokens: 1,
+        output_tokens: 2,
+        cached_read: 3,
+        estimated_cost: 0,
+        budget_breaches: 0,
+        compactions: 0,
+        cache_hit_rate: 0,
+      }),
+    ).toBe(3)
+  })
+
+  test("cached reads never trigger the budget brake by themselves", () => {
+    const filePath = join(tmpdir(), `token-economy-brake-${Date.now()}.json`)
+    try {
+      const engine = new TokenEconomy.TokenEconomyEngine(filePath)
+      // 200k fresh + 100k cached: cached is discounted, only fresh counts
+      engine.record("agent", 200_000, 0, 100_000)
+      expect(engine.status().total.budget_breaches).toBe(0)
+      // fresh total reaches exactly the limit -> breach
+      engine.record("agent", 0, 100_000, 500_000)
+      expect(engine.status().total.budget_breaches).toBe(1)
+      // pure cache reads (DeepSeek-style ~90% hit) never breach, even over the limit
+      const cacheOnly = new TokenEconomy.TokenEconomyEngine(
+        join(tmpdir(), `token-economy-cache-only-${Date.now()}.json`),
+      )
+      cacheOnly.record("agent", 0, 0, 1_000_000)
+      expect(cacheOnly.status().total.budget_breaches).toBe(0)
+      expect(cacheOnly.status().total.cache_hit_rate).toBe(1.0)
+    } finally {
+      for (const name of readdirSync(tmpdir())) {
+        if (name.startsWith("token-economy-brake-") || name.startsWith("token-economy-cache-only-")) {
+          rmSync(join(tmpdir(), name), { force: true })
+        }
+      }
+    }
+  })
+
   test("budget breach triggers exactly at the limit (cumulative per session)", () => {
     const filePath = join(tmpdir(), `token-economy-breach-${Date.now()}.json`)
     try {

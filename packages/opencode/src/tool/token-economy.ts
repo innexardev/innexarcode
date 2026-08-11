@@ -51,7 +51,7 @@ export const TokenEconomyTool = Tool.define<typeof Parameters, Metadata, never>(
             }
           }
           const config = TokenEconomy.loadBudgetConfig()
-          const used = TokenEconomy.cumulativeTokens(metrics)
+          const used = TokenEconomy.budgetTokens(metrics)
           const lines = TokenEconomy.BUDGET_LEVELS.map((level) => {
             const check = TokenEconomy.checkBudget(level, used, config)
             return `${level}: ${Math.round(check.ratio * 100)}% (${check.status}) — ${check.recommendedAction}`
@@ -76,7 +76,7 @@ export const TokenEconomyTool = Tool.define<typeof Parameters, Metadata, never>(
             topSessions: Object.entries(st.sessions)
               .map(([session, m]) => ({
                 session,
-                tokens: TokenEconomy.cumulativeTokens(m),
+                tokens: TokenEconomy.budgetTokens(m),
                 requests: m.requests,
                 estimated_cost: m.estimated_cost,
               }))

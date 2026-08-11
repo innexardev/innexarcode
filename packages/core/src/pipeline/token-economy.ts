@@ -336,6 +336,15 @@ export function cumulativeTokens(metrics: TokenMetrics): number {
   return metrics.input_tokens + metrics.output_tokens + metrics.cached_read
 }
 
+/**
+ * Tokens that actually cost money: fresh input + output. Cached reads are
+ * billed at a discount (cachedDiscount) and are not waste, so they don't
+ * count toward the budget brake.
+ */
+export function budgetTokens(metrics: TokenMetrics): number {
+  return metrics.input_tokens + metrics.output_tokens
+}
+
 const METRICS_FIELDS = [
   "requests", "input_tokens", "output_tokens", "cached_read",
   "estimated_cost", "budget_breaches", "compactions", "cache_hit_rate",
@@ -498,7 +507,7 @@ export class TokenEconomyEngine {
         + output * cost.outputPerM / 1e6,
     )
 
-    const delta: TokenDelta = { sessionKey: key, input, output, cached, added, breach: cumulativeTokens(this.session(key)) + input + output + cached >= budgetLimit(level, budgets), compactions: 0 }
+    const delta: TokenDelta = { sessionKey: key, input, output, cached, added, breach: budgetTokens(this.session(key)) + input + output >= budgetLimit(level, budgets), compactions: 0 }
     applyDelta(this.state, delta)
     this.pending.push(delta)
     this.persist()
