@@ -48,8 +48,22 @@ export function SubagentFooter() {
       currency: "USD",
     })
 
+    const cacheHit =
+      last.tokens.cache.read > 0 ? `cache ${Math.round((last.tokens.cache.read / tokens) * 100)}%` : undefined
+
+    // derive real input $/M from session cost when possible; fall back to the
+    // token-economy default of $3/M and assume a ~10% cache discount
+    const sessionTokens = session()?.tokens
+    const sessionTotal = sessionTokens
+      ? sessionTokens.input + sessionTokens.output + sessionTokens.reasoning + sessionTokens.cache.read + sessionTokens.cache.write
+      : 0
+    const inputPerM = cost > 0 && sessionTotal > 0 ? Math.min(Math.max(cost / (sessionTotal / 1_000_000), 0.1), 100) : 3
+    const savedValue = (last.tokens.cache.read / 1_000_000) * inputPerM * 0.9
+
     return {
       context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
+      cacheHit,
+      saved: savedValue > 0 ? money.format(savedValue) : undefined,
       cost: cost > 0 ? money.format(cost) : undefined,
     }
   })
@@ -88,7 +102,7 @@ export function SubagentFooter() {
             <Show when={usage()}>
               {(item) => (
                 <text fg={theme.textMuted} wrapMode="none">
-                  {[item().context, item().cost].filter(Boolean).join(" · ")}
+                  {[item().context, item().cacheHit, item().saved, item().cost].filter(Boolean).join(" · ")}
                 </text>
               )}
             </Show>
