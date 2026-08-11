@@ -506,8 +506,8 @@ const layer = Layer.effect(
       if (processor.message.error) return "stop"
       if (result === "continue") {
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
-        // Token economy feed: real model usage from the compaction call (advisory, never throws —
-        // a broken dynamic import or persist failure must not fail an already-successful compaction).
+                // Token economy feed: advisory, never throws (auditor M-3). Lazy import keeps the
+        // pipeline barrel (top-level await + recovery scan) out of the session hot path.
         const loadPipeline = () => import("@opencode-ai/core/pipeline")
         const { TokenEconomy } = yield* Effect.promise(loadPipeline).pipe(
           Effect.orElseSucceed(() => ({

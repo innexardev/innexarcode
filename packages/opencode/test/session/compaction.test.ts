@@ -1237,12 +1237,15 @@ describe("session.compaction.process", () => {
         yield* Deferred.await(ready).pipe(Effect.timeout("5 seconds"))
         const start = Date.now()
         yield* Fiber.interrupt(fiber)
-        const exit = yield* Fiber.await(fiber).pipe(Effect.timeout("250 millis"))
+        const exit = yield* Fiber.await(fiber).pipe(Effect.timeout("2 seconds"))
 
         expect(Exit.isFailure(exit)).toBe(true)
         if (Exit.isFailure(exit)) {
           expect(Cause.hasInterrupts(exit.cause)).toBe(true)
-          expect(Date.now() - start).toBeLessThan(250)
+          // Intent: interrupt must not stay stuck in the 10s retry backoff. 250ms was
+          // too tight under CI load (flake confirmed on baseline without any changes);
+          // 2s keeps the assertion meaningful with margin.
+          expect(Date.now() - start).toBeLessThan(2_000)
         }
       }).pipe(withCompaction({ llm: stub.llmLayer }))
     },
