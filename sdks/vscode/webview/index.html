@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InnexarCode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            vscode: {
+              bg: 'var(--vscode-editor-background)',
+              fg: 'var(--vscode-editor-foreground)',
+              sidebar: 'var(--vscode-sideBar-background)',
+              input: 'var(--vscode-input-background)',
+              inputFg: 'var(--vscode-input-foreground)',
+              button: 'var(--vscode-button-background)',
+              buttonHover: 'var(--vscode-button-hoverBackground)',
+              buttonFg: 'var(--vscode-button-foreground)',
+              border: 'var(--vscode-panel-border)',
+              accent: 'var(--vscode-focusBorder)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: var(--vscode-editor-background);
+      color: var(--vscode-editor-foreground);
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    input, select, textarea {
+      background-color: var(--vscode-input-background) !important;
+      color: var(--vscode-input-foreground) !important;
+      border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)) !important;
+    }
+    button {
+      background-color: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+    }
+    button:hover {
+      background-color: var(--vscode-button-hoverBackground);
+    }
+  </style>
+</head>
+<body class="bg-vscode-bg text-vscode-fg h-screen flex flex-col">
+  <div id="root" class="flex-1 flex flex-col h-full"></div>
+  <script src="./index.js"></script>
+</body>
+</html>

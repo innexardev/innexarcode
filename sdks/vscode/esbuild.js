@@ -1,4 +1,6 @@
 const esbuild = require("esbuild")
+const fs = require("fs")
+const path = require("path")
 
 const production = process.argv.includes("--production")
 const watch = process.argv.includes("--watch")
@@ -16,7 +18,9 @@ const esbuildProblemMatcherPlugin = {
     build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
         console.error(`✘ [ERROR] ${text}`)
-        console.error(`    ${location.file}:${location.line}:${location.column}:`)
+        if (location) {
+          console.error(`    ${location.file}:${location.line}:${location.column}:`)
+        }
       })
       console.log("[watch] build finished")
     })
@@ -24,7 +28,15 @@ const esbuildProblemMatcherPlugin = {
 }
 
 async function main() {
-  const ctx = await esbuild.context({
+  fs.mkdirSync(path.join(__dirname, "dist", "webview"), { recursive: true })
+
+  const htmlSrc = path.join(__dirname, "webview", "index.html")
+  const htmlDest = path.join(__dirname, "dist", "webview", "index.html")
+  if (fs.existsSync(htmlSrc)) {
+    fs.copyFileSync(htmlSrc, htmlDest)
+  }
+
+  const extensionCtx = await esbuild.context({
     entryPoints: ["src/extension.ts"],
     bundle: true,
     format: "cjs",
@@ -35,16 +47,29 @@ async function main() {
     outfile: "dist/extension.js",
     external: ["vscode"],
     logLevel: "silent",
-    plugins: [
-      /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin,
-    ],
+    plugins: [esbuildProblemMatcherPlugin],
   })
+
+  const webviewCtx = await esbuild.context({
+    entryPoints: ["webview/src/index.tsx"],
+    bundle: true,
+    format: "iife",
+    minify: production,
+    sourcemap: !production,
+    platform: "browser",
+    outfile: "dist/webview/index.js",
+    logLevel: "silent",
+    plugins: [esbuildProblemMatcherPlugin],
+  })
+
   if (watch) {
-    await ctx.watch()
+    await extensionCtx.watch()
+    await webviewCtx.watch()
   } else {
-    await ctx.rebuild()
-    await ctx.dispose()
+    await extensionCtx.rebuild()
+    await extensionCtx.dispose()
+    await webviewCtx.rebuild()
+    await webviewCtx.dispose()
   }
 }
 
