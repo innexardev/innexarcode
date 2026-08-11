@@ -5,6 +5,9 @@ import { TokenEconomy } from "@opencode-ai/core/pipeline"
 export const Parameters = Schema.Struct({
   command: Schema.Literals(["status", "compact"]),
   session: Schema.optional(Schema.String),
+  verbose: Schema.optional(Schema.Boolean).annotate({
+    description: "Include the full per-session dump instead of the aggregate summary",
+  }),
 })
 
 type Metadata = {
@@ -19,7 +22,7 @@ export const TokenEconomyTool = Tool.define<typeof Parameters, Metadata, never>(
   Effect.gen(function* () {
     return {
       description:
-        "Report or act on the token economy: per-level budget usage (session/agent/subagent) from persistent metrics, or record a compaction after compacting context. Use to keep long sessions inside budget: run status before continuing, run compact after condensing context.",
+        "Report or act on the token economy: per-level budget usage (session/agent/subagent) from persistent metrics, or record a compaction after compacting context. status returns an aggregate summary (totals + top-5 sessions by usage); pass verbose=true for the full per-session dump. Use to keep long sessions inside budget: run status before continuing, run compact after condensing context.",
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, _ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
@@ -53,9 +56,36 @@ export const TokenEconomyTool = Tool.define<typeof Parameters, Metadata, never>(
             const check = TokenEconomy.checkBudget(level, used, config)
             return `${level}: ${Math.round(check.ratio * 100)}% (${check.status}) — ${check.recommendedAction}`
           })
+          const budgetLines = lines.join("\n")
+          if (params.verbose) {
+            return {
+              title: `Token Economy — status (full dump)${suffix}`,
+              output: JSON.stringify(st, null, 2) + "\n\n" + budgetLines,
+              metadata: {
+                requests: metrics.requests,
+                estimated_cost: metrics.estimated_cost,
+                cache_hit_rate: metrics.cache_hit_rate,
+                compactions: metrics.compactions,
+              },
+            }
+          }
+          const summary = {
+            version: st.version,
+            sessionCount: Object.keys(st.sessions).length,
+            total: st.total,
+            topSessions: Object.entries(st.sessions)
+              .map(([session, m]) => ({
+                session,
+                tokens: TokenEconomy.cumulativeTokens(m),
+                requests: m.requests,
+                estimated_cost: m.estimated_cost,
+              }))
+              .toSorted((a, b) => b.tokens - a.tokens)
+              .slice(0, 5),
+          }
           return {
             title: `Token Economy — status${suffix}`,
-            output: JSON.stringify(st, null, 2) + "\n\n" + lines.join("\n"),
+            output: JSON.stringify(summary, null, 2) + "\n\n" + budgetLines,
             metadata: {
               requests: metrics.requests,
               estimated_cost: metrics.estimated_cost,

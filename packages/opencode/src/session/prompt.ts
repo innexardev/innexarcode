@@ -3,6 +3,7 @@ import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import path from "path"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import os from "os"
+import { TokenEconomy } from "@opencode-ai/core/pipeline"
 import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
 import { SessionRevert } from "./revert"
@@ -1040,6 +1041,39 @@ const layer = Layer.effect(
       return yield* loop({ sessionID: input.sessionID })
     })
 
+    // Observation-only hook (opt-in via OPENCODE_CONTEXT_COLLECTOR=true): runs the
+    // L0/L1/L2 context collector over the assembled system layers without mutating
+    // the prompt. A CacheOrderViolation here flags a cache-safety problem (e.g. a
+    // timestamp leaked into stable instructions); it is logged, never thrown.
+    const observeContextLayers = (input: {
+      sessionID: SessionID
+      instructions: string[]
+      skills: string | undefined
+      env: string[]
+      mcpInstructions: string | undefined
+    }) =>
+      Effect.gen(function* () {
+        if (process.env.OPENCODE_CONTEXT_COLLECTOR !== "true") return
+        const collector = TokenEconomy.createContextCollector()
+        collector.add({ name: "instructions", tier: 0, content: input.instructions.join("\n") })
+        collector.add({ name: "skills", tier: 1, content: input.skills ?? "" })
+        collector.add({ name: "environment", tier: 2, content: input.env.join("\n") })
+        if (input.mcpInstructions) collector.add({ name: "mcp", tier: 2, content: input.mcpInstructions })
+        const built = collector.build()
+        yield* Effect.logInfo("context layers collected (observation only)", {
+          "session.id": input.sessionID,
+          layers: collector.layers().map((layer) => `${layer.name}:L${layer.tier}`).join(","),
+          tokens: TokenEconomy.estimateTokens(built),
+        })
+      }).pipe(
+        Effect.catchCause((cause) =>
+          Effect.logWarning("context collector flagged a layer (observation only, prompt unchanged)", {
+            "session.id": input.sessionID,
+            error: Cause.squash(cause),
+          }),
+        ),
+      )
+
     const lastAssistant = Effect.fnUntraced(function* (sessionID: SessionID) {
       const match = yield* sessions.findMessage(sessionID, (m) => m.info.role !== "user").pipe(Effect.orDie)
       if (Option.isSome(match)) return match.value
@@ -1237,6 +1271,7 @@ const layer = Layer.effect(
               ...(mcpInstructions ? [mcpInstructions] : []),
               ...(skills ? [skills] : []),
             ]
+            yield* observeContextLayers({ sessionID, instructions, skills, env, mcpInstructions })
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
             const result = yield* handle.process({

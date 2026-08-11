@@ -151,8 +151,42 @@ function detectFixCommand(workspace: string): [string, string[]] | null {
   return null
 }
 
+function resolveLocalBin(candidates: string[], workspace: string): string | null {
+  for (const name of candidates) {
+    const bin = join(workspace, "node_modules", ".bin", name)
+    if (existsSync(bin)) return bin
+  }
+  return null
+}
+
+function localOrNpx(name: string, workspace: string, args: string): string {
+  const bin = resolveLocalBin([name], workspace)
+  if (bin) return `"${bin}" ${args}`
+  return `npx ${name} ${args}`
+}
+
+// npx-based gates download packages on first run (slow, network-dependent);
+// prefer the workspace's local node_modules/.bin binaries when present.
+function gateArgs(gate: GateName, workspace: string): [string, string[]] {
+  if (gate === "complexity") {
+    const eslint = localOrNpx("eslint", workspace, `--rule 'complexity: ["error", 10]' src/ 2>&1`)
+    const complexify = localOrNpx("complexify", workspace, "src/ 2>&1")
+    return ["/usr/bin/sh", ["-c", `${eslint} || ${complexify} || echo 'no-complexity-tool'`]]
+  }
+  if (gate === "deps") {
+    const madge = localOrNpx("madge", workspace, "--circular src/ 2>&1")
+    const dpdm = localOrNpx("dpdm", workspace, "src/**/*.ts --tree false --warning false 2>&1")
+    return ["/usr/bin/sh", ["-c", `${madge} || ${dpdm} || echo 'no-deps-tool'`]]
+  }
+  if (gate === "duplication") {
+    const jscpd = localOrNpx("jscpd", workspace, "src/ --threshold 10 2>&1")
+    return ["/usr/bin/sh", ["-c", `${jscpd} || echo 'no-duplication-tool'`]]
+  }
+  return GATE_ARGS[gate] ?? ["/usr/bin/true", []]
+}
+
 async function execGate(gate: GateName, workspace: string): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean }> {
-  const [bin, args] = GATE_ARGS[gate] ?? ["/usr/bin/true", []]
+  const [bin, args] = gateArgs(gate, workspace)
   const cwd = ENGOS_GATES.has(gate) ? ENGOS_REPO : workspace
   const resolvedArgs = args.map((arg) => arg.replaceAll("__WORKSPACE__", workspace))
   const { stdout, stderr, exitCode } = await execFileAsync(bin, resolvedArgs, cwd, gateTimeoutMs())
