@@ -144,7 +144,11 @@ export const TaskTool = Tool.define(
 
       const next = yield* agent.get(params.subagent_type)
       if (!next) {
-        return yield* Effect.fail(new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`))
+        const available = (yield* agent.list()).filter((a) => !a.hidden).map((a) => a.name)
+        const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
+        return yield* Effect.fail(
+          new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type.${hint}`),
+        )
       }
 
       const session = params.task_id
