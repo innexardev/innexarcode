@@ -4,6 +4,7 @@
 
 ### Added
 - Gate de `observability` — verifica se serviços/APIs possuem endpoint de health check (`/health`, `/healthz`, `/ready`), logging estruturado e métricas.
+- Token economy (`packages/core/src/pipeline/token-economy.ts` + tool `tokenEconomy` + gate script) — sistema de economia de tokens: contexto em camadas cache-safe (L0 estável → L1 semi-estável → L2 volátil, ordem byte-exata do prefixo, `CacheOrderViolation`), budgets por nível session/agent/subagent com watchdog `ok|compact|finalize|stop` (thresholds 0.8/0.9/1.0), compactação estruturada alinhada ao SUMMARY_TEMPLATE, métricas de custo/hit-rate persistidas atômicamente em `~/.opencode/token-economy.json` (env `TOKEN_ECONOMY_BUDGET_*` / `TOKEN_ECONOMY_COST_*`).
 - Ferramenta `specialist-certify` (`packages/opencode/src/tool/specialist-certify.ts`) e módulo `Certification` (`packages/core/src/pipeline/certify.ts`) — benchmark de certificação de agentes especialistas com notas A-F.
 - Subfase de `observability` na fase de QA do template `api`.
 - Senior-level quality gates (docs/melhorias-nivel-senior.md):

@@ -506,6 +506,16 @@ const layer = Layer.effect(
       if (processor.message.error) return "stop"
       if (result === "continue") {
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
+        // Token economy feed: real model usage from the compaction call (advisory, never throws)
+        const { TokenEconomy } = yield* Effect.promise(() => import("@opencode-ai/core/pipeline"))
+        const used = processor.message.tokens
+        new TokenEconomy.TokenEconomyEngine().record(
+          "session",
+          used?.input ?? 0,
+          used?.output ?? 0,
+          used?.cache?.read ?? 0,
+          input.sessionID,
+        )
       }
       return result
     })

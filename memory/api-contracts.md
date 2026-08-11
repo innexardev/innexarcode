@@ -53,3 +53,30 @@ listAdrs(): AdrEntry[]
 searchAdrs(query: string): AdrEntry[]
   Full-text search across ADR titles and contexts
 ```
+
+## Token Economy Service (core)
+```
+record(level: "agent" | "session" | "subagent", inputTokens: number, outputTokens: number, cachedRead: number, sessionKey?: string, config?: TokenEconomyConfig): void
+  Feeds usage metrics; never throws; persists atomically to ~/.opencode/token-economy.json
+
+recordCompaction(config?, sessionKey?): void
+  Increments compaction counter + requests
+
+reset(sessionKey?: string): void
+  Clears metrics for a session key
+
+checkBudget(config): { status: "ok" | "compact" | "finalize" | "stop", ratio, message }
+  Watchdog: thresholds 0.8 / 0.9 / 1.0 per level; returns stop when NaN ratio detected
+
+getMetrics(config?, sessionKey?): TokenEconomyMetrics
+  total + per-session aggregates with estimated_cost / cache_hit_rate
+
+summaryText / summarizeMessages(input): CompactedSummary
+  Structured compaction aligned to SUMMARY_TEMPLATE with stable/semi-stable/volatile layers (L0/L1/L2)
+```
+## Token Economy Tool (opencode)
+```
+tokenEconomy status      → current metrics + budget status from ~/.opencode/token-economy.json
+tokenEconomy compact     → force structured compaction of messages (needs working session)
+```
+Gate: `token-economy` (advisory, exit 0) registered in gate.ts — GateName includes "token-economy"; env `GATE_TIMEOUT_MS` overrides 120s default (600s).

@@ -81,3 +81,13 @@ Each layer uses `mergeDeep` with array concatenation for `instructions`. Plugin 
 - **Manual DI containers:** Over-engineered for a process that creates services once at startup. Adds indirection without benefit.
 - **Global singletons:** Simple but prevents testing, multi-project isolation, and lifecycle management.
 **Consequences:** Simple, composable service wiring with clear logical groups. The `AppNodeBuilderV1.build` call creates a single monolithic hub file (`app-runtime.ts`) that imports all service nodes — this is a central coupling point. Adding a new service requires touching the hub file, but the `LayerNode` pattern makes each service's contribution self-contained and independently testable.
+
+## ADR-014 — Token Economy (2026-08-10)
+- Módulo puro em `packages/core/src/pipeline/token-economy.ts`, exportado via pipeline/index.ts.
+- Invariante cache-safe: camadas 0 (estável) → 1 (semi-estável) → 2 (volátil); nunca volatile antes de stable; `CacheOrderViolation` throw.
+- Budgets: session 1M / agent 300K / subagent 100K; thresholds compact 0.8 / finalize 0.9 / stop 1.0 (env TOKEN_ECONOMY_BUDGET_*).
+- Métricas atômicas em ~/.opencode/token-economy.json (tmp+rename).
+- Compactação estruturada `{goal, decisions, files_changed, pending_tasks, blockers, next_step}` alinhada ao SUMMARY_TEMPLATE.
+- Anti-goals v1: cache_control breakpoints, prompt_cache_key, model routing, RAG, token firewall.
+- Custo default $3/M input, $15/M output, cached 0.1x (env TOKEN_ECONOMY_COST_*).
+- Implementado em 2026-08-10 (commit pendente).

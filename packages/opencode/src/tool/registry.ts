@@ -44,6 +44,7 @@ import { LoopRunTool } from "./loop-run"
 import { DispatcherRouteTool } from "./dispatcher-route"
 import { MergeCoordinatorTool } from "./merge-coordinator"
 import { SpecialistCertifyTool } from "./specialist-certify"
+import { TokenEconomyTool } from "./token-economy"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -139,6 +140,7 @@ const layer = Layer.effect(
     const dispatcherroute = yield* DispatcherRouteTool
     const mergecoordinator = yield* MergeCoordinatorTool
     const specialistcertify = yield* SpecialistCertifyTool
+    const tokeneconomy = yield* TokenEconomyTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
@@ -259,6 +261,7 @@ const layer = Layer.effect(
           dispatcherRoute: Tool.init(dispatcherroute),
           mergeCoordinator: Tool.init(mergecoordinator),
           specialistCertify: Tool.init(specialistcertify),
+          tokenEconomy: Tool.init(tokeneconomy),
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
@@ -295,6 +298,7 @@ const layer = Layer.effect(
             tool.observabilityRecord,
             tool.templateStart,
             tool.loopRun,
+            tool.tokenEconomy,
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),

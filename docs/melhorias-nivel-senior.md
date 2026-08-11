@@ -19,6 +19,7 @@
 | 11 | Agentes especialistas com roteamento e certificação | 🟢 Implementado (11.1-11.8) |
 | 12 | Gates de SEO, a11y, onboarding, analytics | 🟢 Implementado |
 | 13 | Execução paralela isolada | 🟢 Implementado (13.1-13.6) |
+| 14 | Economia de tokens (cache-safe, budgets, métricas) | 🟢 Implementado (14.1-14.5) |
 
 ## Detalhes por Seção
 
@@ -143,3 +144,11 @@ OPENCODE_A11Y_URL=http://localhost:3000 /gate run-gate a11y
 ### Restante (roadmap futuro)
 - **13.5** Limite dinâmico de paralelismo (métrica de partições efetivas)
 - **13.7** Comunicação entre agentes via backlog compartilhado (parcial: items bloqueantes)
+
+### Seção 14 — Economia de Tokens (14.1-14.5)
+- **14.1 Budgets**: módulo `TokenEconomy` (`packages/core/src/pipeline/token-economy.ts`) — budgets session 1M / agent 300K / subagent 100K, watchdog `checkBudget` com estados ok/compact/finalize/stop (thresholds 0.8/0.9/1.0, env `TOKEN_ECONOMY_BUDGET_*`)
+- **14.2 Contexto em camadas cache-safe**: coletor L0 estável (AGENTS.md/rules/system, sem timestamps — `validateStable`/`assertStable`) → L1 semi-estável (memory/*) → L2 volátil (arquivos/diffs/tool outputs); ordem estritamente não-decrescente, violação lança `CacheOrderViolation` (prefixo byte-exato do provider preservado)
+- **14.3 Compactação estruturada**: `createStructuredCompaction`/`parseStructuredCompaction` {goal, decisions, files_changed, pending_tasks, blockers, next_step, completed} alinhado ao SUMMARY_TEMPLATE — round-trip estável
+- **14.4 Tool**: `tokenEconomy` (status|compact, níveis session/agent/subagent) registrada em `registry.ts`
+- **14.5 Métricas**: `TokenEconomyEngine` persistência atômica (tmp+rename) em `~/.opencode/token-economy.json` — requests, tokens in/out, cached_read, cache_hit_rate, estimated_cost (default $3/M in, $15/M out, cached 0.1x, env `TOKEN_ECONOMY_COST_*`), budget_breaches, compactions; arquivo corrompido → `.corrupt-<ts>`
+- **Fora de escopo (roadmap)**: cache breakpoints por provider (`cache_control` Anthropic), `prompt_cache_key` (OpenAI), model routing automático, RAG, token firewall hard.

@@ -17,3 +17,10 @@ Every architecturally significant decision gets an ADR in memory/decisions.md. A
 
 ## Parallel Execution
 Independent phases (e.g., backend + frontend implementation) execute in parallel. The planner identifies dependency DAG and dispatches to multiple agents concurrently via task tool.
+
+## Contexto em camadas cache-safe (Token Economy)
+Invariante: static-first / variable-last. Camada 0 (estável: AGENTS.md, rules, system prompt — sem timestamps) sempre antes da camada 1 (semi-estável: memory/*), que vem antes da camada 2 (volátil: arquivos, diffs, tool outputs). A ordem deve ser estritamente não-decrescente — qualquer violação lança `CacheOrderViolation`.
+- Regra do prefixo byte-exato: prompt caching de providers exige que o prefixo da requisição seja IDÊNTICO ao da anterior (OpenAI cache automático ≥1024 tokens, Anthropic via `cache_control`). Mesmo um único byte mudando no início invalida o cache inteiro do turno.
+- Nunca mutar tools/system prompt no meio da sessão; mudanças de config só entram via nova sessão.
+- Compactação deve reutilizar o prefixo pai (camadas estáveis intactas) para não zerar o hit-rate após compact.
+- Hit-rate saudável: 60-90% (monitorar `cached_read` em `~/.opencode/token-economy.json`). Abaixo de 60% indica prefixo instável; acima de 90% indica contexto estagnado.

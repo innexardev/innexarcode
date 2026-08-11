@@ -29,6 +29,7 @@ export const GateName = Schema.Union([
   Schema.Literal("onboarding"),
   Schema.Literal("analytics"),
   Schema.Literal("observability"),
+  Schema.Literal("token-economy"),
 ])
 export type GateName = typeof GateName.Type
 
@@ -61,12 +62,19 @@ type Metadata = {
   gates: Schema.Schema.Type<typeof GateResult>[]
 }
 
-const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability"]
+const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability", "token-economy"]
 
-const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability"] as const
+const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability", "token-economy"] as const
 
 const WORKSPACE = "/root/opencode-engos"
 const BUN = "/root/.bun/bin/bun"
+
+/** Gate timeout: env-overridable (default 600s — npx-based gates download tools on first run). */
+function gateTimeoutMs(): number {
+  const raw = process.env.GATE_TIMEOUT_MS
+  const parsed = raw ? parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 600_000
+}
 
 const GATE_ARGS: Record<string, [string, string[]]> = {
   build: [BUN, ["run", "build"]],
@@ -92,6 +100,7 @@ const GATE_ARGS: Record<string, [string, string[]]> = {
   onboarding: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/onboarding.ts"]],
   analytics: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/analytics.ts"]],
   observability: ["/root/.bun/bin/bun", ["packages/opencode/script/gates/observability.ts"]],
+  "token-economy": ["/root/.bun/bin/bun", ["packages/opencode/script/gates/token-economy.ts"]],
 }
 
 async function execFileAsync(bin: string, args: string[], cwd: string, timeout: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -126,7 +135,7 @@ function detectFixCommand(): [string, string[]] | null {
 
 async function execGate(gate: GateName): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean }> {
   const [bin, args] = GATE_ARGS[gate] ?? ["/usr/bin/true", []]
-  const { stdout, stderr, exitCode } = await execFileAsync(bin, args, WORKSPACE, 120_000)
+  const { stdout, stderr, exitCode } = await execFileAsync(bin, args, WORKSPACE, gateTimeoutMs())
   return { stdout, stderr, exitCode, passed: exitCode === 0 }
 }
 
@@ -142,7 +151,7 @@ async function execGateWithAutoFix(gate: GateName, autoFix: boolean): Promise<{ 
     return { ...result, fixOutput: { fixApplied: false, fixIssues: 0, remainingIssues: 0 } }
   }
 
-  const fixResult = await execFileAsync(fixCmd[0], fixCmd[1], WORKSPACE, 120_000)
+  const fixResult = await execFileAsync(fixCmd[0], fixCmd[1], WORKSPACE, gateTimeoutMs())
   const fixApplied = fixResult.exitCode === 0
 
   const checkResult = await execGate(gate)
@@ -181,7 +190,7 @@ export const GateTool = Tool.define<typeof Parameters, Metadata, never>(
   Effect.gen(function* () {
     return {
       description:
-        "Run quality gates (build, lint, types, tests, coverage, security, docker, deploy, complexity, deps, duplication, polish, a11y, licenses, compat, scope, i18n, seo, market, infra-cost, onboarding, analytics, observability) and return results. Blocks delivery if any fail. polish = senior DoD (no TODO/console.log/secrets, docs updated). a11y = WCAG for web/mobile. licenses = copyleft check on new deps. compat = breaking API/schema requires ADR. scope = diff within .opencode/scope.json. i18n = translation readiness for frontend. seo = meta tags/sitemap for web. market = registered demand for user-facing features (conditional WARN). infra-cost = cloud cost estimate for IaC changes. onboarding = new client-facing pages declare onboarding needs. analytics = new client-facing pages declare tracking events. observability = delivered product has health check (required for services), structured logging and metrics. Use autoFix=true to auto-apply eslint/prettier fixes before the lint check.",
+        "Run quality gates (build, lint, types, tests, coverage, security, docker, deploy, complexity, deps, duplication, polish, a11y, licenses, compat, scope, i18n, seo, market, infra-cost, onboarding, analytics, observability, token-economy) and return results. Blocks delivery if any fail. polish = senior DoD (no TODO/console.log/secrets, docs updated). a11y = WCAG for web/mobile. licenses = copyleft check on new deps. compat = breaking API/schema requires ADR. scope = diff within .opencode/scope.json. i18n = translation readiness for frontend. seo = meta tags/sitemap for web. market = registered demand for user-facing features (conditional WARN). infra-cost = cloud cost estimate for IaC changes. onboarding = new client-facing pages declare onboarding needs. analytics = new client-facing pages declare tracking events. observability = delivered product has health check (required for services), structured logging and metrics. token-economy = advisory token budget/metrics check (never blocks). Use autoFix=true to auto-apply eslint/prettier fixes before the lint check.",
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {

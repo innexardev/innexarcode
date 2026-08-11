@@ -20,3 +20,6 @@ Pipeline TODO is the authoritative record of what's being worked on. Context mem
 
 ## Immutable Memory
 Memory files in memory/ are append-only. Previous content is never deleted, only supplemented with ADRs, lessons, or deprecation notices. This preserves decision history and reasoning.
+
+## Token Economy Rule
+Every model-bound context built by the agent system must honor cache-safe layering: stable layer (L0, byte-identical prefix) → semi-stable (L1) → volatile (L2). Violations of byte-exact prefix ordering raise CacheOrderViolation. Budgets are enforced per level (session/agent/subagent) with watchdogs at 0.8/0.9/1.0; crossing 1.0 forces finalize, ratio NaN forces stop. Metrics (requests, tokens, cost, cache hit rate) persist to ~/.opencode/token-economy.json and feed the advisory token-economy gate. The engine is advisory by design — it never blocks generation; the tool/gate surface reports, the compaction path records real model usage.
