@@ -81,7 +81,10 @@ await $`cp ./script/postinstall.mjs ./dist/${publishName}/postinstall.mjs`
 
 await Bun.file(`./dist/${publishName}/LICENSE`).write(await Bun.file("../../LICENSE").text())
 
-await Bun.file(`./dist/${publishName}/bin/${publishName}.exe`).write(
+// Placeholder precisa ter o MESMO nome referenciado pelo bin field (bin/opencode.exe),
+// senão o npm não cria o symlink .bin na instalação (regressão 1.23.0: placeholder
+// era opencode-engos.exe e o .bin ficou ausente).
+await Bun.file(`./dist/${publishName}/bin/opencode.exe`).write(
   [
     `echo "Error: ${publishName}-ai's postinstall script was not run." >&2`,
     'echo "" >&2',
