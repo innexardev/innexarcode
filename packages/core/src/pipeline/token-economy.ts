@@ -171,11 +171,34 @@ export interface ContextCollector {
  * Future integration: feed validateStable results into the cache-eviction
  * decision and drive createStructuredCompaction from the real compaction prompt.
  */
+/**
+ * Returns false (volatile) only when the content embeds an actual time/date
+ * VALUE — an ISO literal, a clock time, or a temporal word ("timestamp",
+ * "current time", "hoje", "agora", "data atual", "última atualização")
+ * immediately followed by such a value. Mentions of those words in
+ * specification context ("Phase transitions logged with timestamp") are stable:
+ * they carry no value and do not change between requests. Bare date-only
+ * literals are also stable, since dates often appear as version identifiers
+ * (e.g. "schema 2026-08-11").
+ */
 export function validateStable(content: string): boolean {
   if (/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(content)) return false
-  if (/current time|timestamp|now is|hoje|agora|data atual|última atualiza|ultima atualiza/i.test(content)) return false
   if (/(^|\s)(às|at)\s+\d{1,2}:\d{2}\b/i.test(content)) return false
+  if (/timestamp\s*[:=]\s*\d{4}-\d{2}-\d{2}/i.test(content)) return false
+  if (/timestamp\s*[:=]\s*\d{1,2}:\d{2}/i.test(content)) return false
+  if (/current time\s+(is\s+)?\d{1,2}:\d{2}/i.test(content)) return false
+  if (/now is\s+\d{1,2}:\d{2}/i.test(content)) return false
+  if (timeValueAfter(content, "hoje", false)) return false
+  if (timeValueAfter(content, "agora", false)) return false
+  if (timeValueAfter(content, "data atual", true)) return false
+  if (timeValueAfter(content, "última atualiza", true)) return false
+  if (timeValueAfter(content, "ultima atualiza", true)) return false
   return true
+}
+
+function timeValueAfter(content: string, marker: string, allowDate: boolean): boolean {
+  const value = allowDate ? "\\d{1,2}:\\d{2}|\\d{4}-\\d{2}-\\d{2}" : "\\d{1,2}:\\d{2}"
+  return new RegExp(`${marker}.{0,30}(${value})`, "i").test(content)
 }
 
 export function assertStable(layer: ContextLayer): void {

@@ -403,6 +403,27 @@ describe("TokenEconomy", () => {
     expect(TokenEconomy.validateStable("regras de formatação: 2 espaços")).toBe(true)
   })
 
+  test("validateStable treats bare temporal words as stable specification prose", () => {
+    expect(TokenEconomy.validateStable("Phase transitions logged with timestamp")).toBe(true)
+    expect(TokenEconomy.validateStable("Recent activity log (last 10 actions with timestamps)")).toBe(true)
+    expect(TokenEconomy.validateStable("hoje é um bom dia")).toBe(true)
+    expect(TokenEconomy.validateStable("E agora? O que devemos fazer")).toBe(true)
+    expect(TokenEconomy.validateStable("current time zone is UTC")).toBe(true)
+    expect(TokenEconomy.validateStable("schema 2026-08-11 is the version")).toBe(true)
+  })
+
+  test("validateStable rejects temporal words only when a value is embedded", () => {
+    expect(TokenEconomy.validateStable("timestamp=2026-08-11T14:32:10")).toBe(false)
+    expect(TokenEconomy.validateStable("Timestamp: 2026-08-11")).toBe(false)
+    expect(TokenEconomy.validateStable("timestamp=14:32")).toBe(false)
+    expect(TokenEconomy.validateStable("at 14:32")).toBe(false)
+    expect(TokenEconomy.validateStable("hoje às 14:32")).toBe(false)
+    expect(TokenEconomy.validateStable("agora são 14:32")).toBe(false)
+    expect(TokenEconomy.validateStable("data atual: 2026-08-11")).toBe(false)
+    expect(TokenEconomy.validateStable("última atualização às 10:00")).toBe(false)
+    expect(TokenEconomy.validateStable("2026-08-11 14:32:10")).toBe(false)
+  })
+
   test("a directory at the metrics path is never renamed or touched", () => {
     const dir = join(tmpdir(), `token-economy-dir-${Date.now()}`)
     try {
