@@ -526,6 +526,31 @@ describe("OpenAI Chat route", () => {
     }),
   )
 
+  it.effect("parses DeepSeek cache usage (prompt_cache_hit_tokens, no prompt_tokens_details)", () =>
+    Effect.gen(function* () {
+      // DeepSeek (openai-compatible) reports cache reads via prompt_cache_hit_tokens
+      // and does NOT send prompt_tokens_details.cached_tokens (OpenAI shape).
+      const body = sseEvents(
+        deltaChunk({ role: "assistant", content: "Hello" }),
+        deltaChunk({}, "stop"),
+        usageChunk({
+          prompt_tokens: 1000,
+          completion_tokens: 100,
+          total_tokens: 1100,
+          prompt_cache_hit_tokens: 900,
+          prompt_cache_miss_tokens: 100,
+        }),
+      )
+      const response = yield* LLMClient.generate(request).pipe(Effect.provide(fixedResponse(body)))
+      const usage = response.events.findLast((e) => e.type === "finish")?.usage
+
+      expect(usage?.inputTokens).toBe(1000)
+      expect(usage?.cacheReadInputTokens).toBe(900)
+      expect(usage?.nonCachedInputTokens).toBe(100)
+      expect(usage?.outputTokens).toBe(100)
+    }),
+  )
+
   it.effect("parses OpenAI-compatible reasoning content deltas", () =>
     Effect.gen(function* () {
       const body = sseEvents(
