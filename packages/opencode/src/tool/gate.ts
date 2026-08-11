@@ -66,8 +66,26 @@ const ALL_GATES: GateName[] = ["build", "lint", "types", "tests", "coverage", "s
 
 const ALL_GATE_NAMES = ["build", "lint", "types", "tests", "coverage", "security", "docker", "deploy", "complexity", "deps", "duplication", "polish", "a11y", "licenses", "compat", "scope", "i18n", "seo", "market", "infra-cost", "onboarding", "analytics", "observability", "token-economy"] as const
 
-const WORKSPACE = "/root/opencode-engos"
+const ENGOS_REPO = "/root/opencode-engos"
 const BUN = "/root/.bun/bin/bun"
+
+// EngOS-owned gates run against the EngOS repo, never the user's project:
+// their scripts use paths relative to the opencode-engos repository.
+const ENGOS_GATES = new Set([
+  "polish",
+  "a11y",
+  "licenses",
+  "compat",
+  "scope",
+  "i18n",
+  "seo",
+  "market",
+  "infra-cost",
+  "onboarding",
+  "analytics",
+  "observability",
+  "token-economy",
+])
 
 /** Gate timeout: env-overridable (default 600s — npx-based gates download tools on first run). */
 function gateTimeoutMs(): number {
@@ -83,8 +101,8 @@ const GATE_ARGS: Record<string, [string, string[]]> = {
   tests: [BUN, ["run", "test"]],
   coverage: [BUN, ["run", "test", "--coverage"]],
   security: [BUN, ["run", "audit"]],
-  docker: ["/usr/bin/sh", ["-c", "ls /root/opencode-engos/Dockerfile 2>/dev/null || ls /root/opencode-engos/docker-compose.yml 2>/dev/null || echo 'no-docker-config'"]],
-  deploy: ["/usr/bin/sh", ["-c", "ls /root/opencode-engos/deploy.yaml 2>/dev/null || ls /root/opencode-engos/.github/deploy.yaml 2>/dev/null || ls /root/opencode-engos/deploy.yml 2>/dev/null || echo 'no-deploy-config'"]],
+  docker: ["/usr/bin/sh", ["-c", "ls __WORKSPACE__/Dockerfile 2>/dev/null || ls __WORKSPACE__/docker-compose.yml 2>/dev/null || ls ${ENGOS_REPO}/Dockerfile 2>/dev/null || echo 'no-docker-config'"]],
+  deploy: ["/usr/bin/sh", ["-c", "ls __WORKSPACE__/deploy.yaml 2>/dev/null || ls __WORKSPACE__/.github/deploy.yaml 2>/dev/null || ls __WORKSPACE__/deploy.yml 2>/dev/null || ls ${ENGOS_REPO}/deploy.yaml 2>/dev/null || echo 'no-deploy-config'"]],
   complexity: ["/usr/bin/sh", ["-c", "npx eslint --rule 'complexity: [\"error\", 10]' src/ 2>&1 || npx complexify src/ 2>&1 || echo 'no-complexity-tool'"]],
   deps: ["/usr/bin/sh", ["-c", "npx madge --circular src/ 2>&1 || npx dpdm src/**/*.ts --tree false --warning false 2>&1 || echo 'no-deps-tool'"]],
   duplication: ["/usr/bin/sh", ["-c", "npx jscpd src/ --threshold 10 2>&1 || echo 'no-duplication-tool'"]],
@@ -112,8 +130,8 @@ async function execFileAsync(bin: string, args: string[], cwd: string, timeout: 
   })
 }
 
-function detectFixCommand(): [string, string[]] | null {
-  const pkgPath = join(WORKSPACE, "package.json")
+function detectFixCommand(workspace: string): [string, string[]] | null {
+  const pkgPath = join(workspace, "package.json")
   if (!existsSync(pkgPath)) return null
   try {
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"))
@@ -124,37 +142,39 @@ function detectFixCommand(): [string, string[]] | null {
   } catch {
     // ignore parse errors
   }
-  if (existsSync(join(WORKSPACE, "eslint.config.js")) || existsSync(join(WORKSPACE, ".eslintrc.js")) || existsSync(join(WORKSPACE, ".eslintrc.json")) || existsSync(join(WORKSPACE, ".eslintrc"))) {
+  if (existsSync(join(workspace, "eslint.config.js")) || existsSync(join(workspace, ".eslintrc.js")) || existsSync(join(workspace, ".eslintrc.json")) || existsSync(join(workspace, ".eslintrc"))) {
     return [BUN, ["x", "eslint", "--fix", "."]]
   }
-  if (existsSync(join(WORKSPACE, "prettier.config.js")) || existsSync(join(WORKSPACE, ".prettierrc")) || existsSync(join(WORKSPACE, ".prettierrc.json"))) {
+  if (existsSync(join(workspace, "prettier.config.js")) || existsSync(join(workspace, ".prettierrc")) || existsSync(join(workspace, ".prettierrc.json"))) {
     return [BUN, ["x", "prettier", "--write", "."]]
   }
   return null
 }
 
-async function execGate(gate: GateName): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean }> {
+async function execGate(gate: GateName, workspace: string): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean }> {
   const [bin, args] = GATE_ARGS[gate] ?? ["/usr/bin/true", []]
-  const { stdout, stderr, exitCode } = await execFileAsync(bin, args, WORKSPACE, gateTimeoutMs())
+  const cwd = ENGOS_GATES.has(gate) ? ENGOS_REPO : workspace
+  const resolvedArgs = args.map((arg) => arg.replaceAll("__WORKSPACE__", workspace))
+  const { stdout, stderr, exitCode } = await execFileAsync(bin, resolvedArgs, cwd, gateTimeoutMs())
   return { stdout, stderr, exitCode, passed: exitCode === 0 }
 }
 
-async function execGateWithAutoFix(gate: GateName, autoFix: boolean): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean; fixOutput?: Schema.Schema.Type<typeof FixOutput> }> {
+async function execGateWithAutoFix(gate: GateName, autoFix: boolean, workspace: string): Promise<{ stdout: string; stderr: string; exitCode: number; passed: boolean; fixOutput?: Schema.Schema.Type<typeof FixOutput> }> {
   if (gate !== "lint" || !autoFix) {
-    const result = await execGate(gate)
+    const result = await execGate(gate, workspace)
     return { ...result, fixOutput: undefined }
   }
 
-  const fixCmd = detectFixCommand()
+  const fixCmd = detectFixCommand(workspace)
   if (!fixCmd) {
-    const result = await execGate(gate)
+    const result = await execGate(gate, workspace)
     return { ...result, fixOutput: { fixApplied: false, fixIssues: 0, remainingIssues: 0 } }
   }
 
-  const fixResult = await execFileAsync(fixCmd[0], fixCmd[1], WORKSPACE, gateTimeoutMs())
+  const fixResult = await execFileAsync(fixCmd[0], fixCmd[1], workspace, gateTimeoutMs())
   const fixApplied = fixResult.exitCode === 0
 
-  const checkResult = await execGate(gate)
+  const checkResult = await execGate(gate, workspace)
   const fixIssues = fixApplied ? 1 : 0
   const remainingIssues = checkResult.passed ? 0 : 1
 
@@ -167,10 +187,10 @@ async function execGateWithAutoFix(gate: GateName, autoFix: boolean): Promise<{ 
   }
 }
 
-function runGate(gate: GateName, autoFix = false) {
+function runGate(gate: GateName, autoFix: boolean, workspace: string) {
   return Effect.gen(function* () {
     const start = Date.now()
-    const { stdout, stderr, passed, fixOutput } = yield* Effect.promise(() => execGateWithAutoFix(gate, autoFix))
+    const { stdout, stderr, passed, fixOutput } = yield* Effect.promise(() => execGateWithAutoFix(gate, autoFix, workspace))
     const duration = Date.now() - start
     if (passed && pipelineState) pipelineState.passGate(gate)
     const result: Schema.Schema.Type<typeof GateResult> = {
@@ -194,6 +214,7 @@ export const GateTool = Tool.define<typeof Parameters, Metadata, never>(
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context<Metadata>) =>
         Effect.gen(function* () {
+          const workspace = ctx.directory ?? ENGOS_REPO
           const gates = params.gates ?? (ALL_GATES as GateName[])
           const autoFix = params.autoFix ?? false
 
@@ -214,7 +235,7 @@ export const GateTool = Tool.define<typeof Parameters, Metadata, never>(
                 metadata: { gates: [] },
               }
             }
-            const result = yield* runGate(gate, autoFix)
+            const result = yield* runGate(gate, autoFix, workspace)
             const title = result.passed ? `PASS: ${gate}` : `FAIL: ${gate}`
             return {
               title,
@@ -225,7 +246,7 @@ export const GateTool = Tool.define<typeof Parameters, Metadata, never>(
 
           const results: Schema.Schema.Type<typeof GateResult>[] = []
           for (const gate of gates) {
-            const result = yield* runGate(gate, autoFix)
+            const result = yield* runGate(gate, autoFix, workspace)
             results.push(result)
           }
 

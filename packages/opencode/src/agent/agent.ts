@@ -381,6 +381,20 @@ const layer = Layer.effect(
             `Teacher — explica decisoes tecnicas, por que X foi escolhido em vez de Y.`),
           mentor: engosAgent("mentor",
             `Mentor — code smells, melhorias, boas praticas, crescimento do dev.`),
+
+          // ── Domain agents ──
+          backend: engosAgent("backend",
+            `Backend — APIs, servicos, banco de dados, integracoes. Implementa logica de servidor.`),
+          frontend: engosAgent("frontend",
+            `Frontend — UI, componentes, estilos, interacao, responsividade.`),
+          db: engosAgent("db",
+            `DB — schema, migracoes, queries, indexes, seeds.`),
+          infra: engosAgent("infra",
+            `Infra — docker, deploy, CI/CD, configuracao de ambiente.`),
+          docs: engosAgent("docs",
+            `Docs — documentacao, README, guias, manuais, memory/.`),
+          ux: engosAgent("ux",
+            `UX — experiencia do usuario, fluxos, usabilidade, testes de usabilidade.`),
         }
 
         for (const [key, value] of Object.entries(cfg.agent ?? {})) {

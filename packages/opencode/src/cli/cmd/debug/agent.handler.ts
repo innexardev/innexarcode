@@ -177,6 +177,7 @@ const createToolContext = Effect.fn("Cli.debug.agent.createToolContext")(functio
     callID: PartID.ascending(),
     agent: agent.name,
     abort: new AbortController().signal,
+    directory: ctx.directory,
     messages: [],
     metadata: () => Effect.void,
     ask(req: Omit<PermissionV1.Request, "id" | "sessionID" | "tool">) {

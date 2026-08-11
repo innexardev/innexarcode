@@ -78,6 +78,14 @@ function renderOutput(input: {
   ].join("\n")
 }
 
+function lastText(parts: SessionV1.Part[]): string {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]
+    if (p.type === "text" && p.text && p.text.trim() !== "") return p.text
+  }
+  return ""
+}
+
 export const TaskTool = Tool.define(
   id,
   Effect.gen(function* () {
@@ -216,7 +224,7 @@ export const TaskTool = Tool.define(
           agent: next.name,
           parts,
         })
-        return result.parts.findLast((item) => item.type === "text")?.text ?? ""
+        return lastText(result.parts)
       })
 
       const inject = Effect.fn("TaskTool.injectBackgroundResult")(function* (
