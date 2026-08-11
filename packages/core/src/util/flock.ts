@@ -145,6 +145,35 @@ export namespace Flock {
     return now - dir.mtimeMs > staleMs
   }
 
+  /**
+   * Whether the recorded lock owner is still running. Only steal a stale lock
+   * when the owner provably no longer exists. Accepted risk: a PID can be
+   * reused after the owner exits, making a stranger look alive (we then wait
+   * out the timeout instead of stealing); staleMs + timeoutMs bound the damage.
+   */
+  export function pidAlive(pid: unknown): boolean {
+    if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) return false
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch (error) {
+      return code(error) !== "ESRCH"
+    }
+  }
+
+  async function ownerAlive(metaPath: string): Promise<boolean> {
+    // Never steal a stale lock whose recorded owner still exists — it may be
+    // alive but slow (stuck event loop, failed heartbeat). Legacy meta without
+    // a pid, or an unreadable/missing meta, keeps the old stale-steal path.
+    const raw = await readFile(metaPath, "utf8").catch(() => undefined)
+    if (raw === undefined) return false
+    try {
+      return pidAlive((JSON.parse(raw) as Record<string, unknown>).pid)
+    } catch {
+      return false
+    }
+  }
+
   async function tryAcquireLockDir(lockDir: string, opts: Opts): Promise<Owned | { acquired: false }> {
     const token = randomUUID?.() ?? randomBytes(16).toString("hex")
     const metaPath = path.join(lockDir, "meta.json")
@@ -157,7 +186,7 @@ export namespace Flock {
         throw err
       }
 
-      if (!(await stale(lockDir, heartbeatPath, metaPath, opts.staleMs))) {
+      if (!(await stale(lockDir, heartbeatPath, metaPath, opts.staleMs)) || (await ownerAlive(metaPath))) {
         return { acquired: false }
       }
 

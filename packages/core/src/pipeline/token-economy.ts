@@ -3,8 +3,9 @@ export * as TokenEconomy from "./token-economy"
 import { randomUUID } from "node:crypto"
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { dirname } from "node:path"
+import { dirname, basename } from "node:path"
 import { Artifact } from "../artifact"
+import { cleanupOrphanedTmp } from "./persist"
 
 /**
  * Token Economy — orçamento de tokens por nível (session/agent/subagent).
@@ -156,6 +157,20 @@ export interface ContextCollector {
   layers(): ContextLayer[]
 }
 
+/**
+ * Library surface (createContextCollector / validateStable / assertStable /
+ * createStructuredCompaction / parseStructuredCompaction) is exercised by tests
+ * and by an observation-only hook in the real prompt build path:
+ * packages/opencode/src/session/prompt.ts (observeContextLayers) runs the
+ * collector over the assembled system layers (instructions L0, skills L1,
+ * environment/mcp L2) when OPENCODE_CONTEXT_COLLECTOR=true, without mutating the
+ * prompt output. It is kept out of the hot path by default: validating or
+ * restructuring live prompts would change production behavior (token counts,
+ * cache keys), and the structured compaction format is not yet wired into the
+ * session compaction flow (packages/opencode/src/session/compaction.ts).
+ * Future integration: feed validateStable results into the cache-eviction
+ * decision and drive createStructuredCompaction from the real compaction prompt.
+ */
 export function validateStable(content: string): boolean {
   if (/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(content)) return false
   if (/current time|timestamp|now is|hoje|agora|data atual|última atualiza|ultima atualiza/i.test(content)) return false
@@ -313,6 +328,8 @@ export interface TokenMetrics {
   budget_breaches: number
   compactions: number
   cache_hit_rate: number
+  /** Internal: true while the current budget crossing is already counted. Optional so pre-existing state files (without the field) load fine and default to "not counted". */
+  breach_counted?: boolean
 }
 
 export function cumulativeTokens(metrics: TokenMetrics): number {
@@ -345,6 +362,7 @@ export class TokenEconomyEngine {
   private ensureLoaded(): void {
     if (this.loaded) return
     this.loaded = true
+    cleanupOrphanedTmp(dirname(this.filePath), basename(this.filePath))
     const base = this.loadFromDisk()
     if (base) {
       this.state = base
@@ -548,7 +566,7 @@ function applyDelta(state: TokenEconomyState, delta: TokenDelta): void {
   session.cached_read += delta.cached
   session.estimated_cost += delta.added
   session.compactions += delta.compactions
-  if (delta.breach) session.budget_breaches++
+  countBreach(session, delta)
   session.cache_hit_rate = cacheHitRate(session)
 
   if (delta.compactions === 0) state.total.requests++
@@ -557,8 +575,28 @@ function applyDelta(state: TokenEconomyState, delta: TokenDelta): void {
   state.total.cached_read += delta.cached
   state.total.estimated_cost += delta.added
   state.total.compactions += delta.compactions
-  if (delta.breach) state.total.budget_breaches++
+  countBreach(state.total, delta)
   state.total.cache_hit_rate = cacheHitRate(state.total)
+}
+
+/**
+ * Budget breaches count once per crossing, not once per delta: increment only
+ * on the first breach delta while above the budget, and reset the guard when a
+ * real token delta reports being back under the budget so a future crossing
+ * counts again. Compaction deltas (breach hardcoded false, zero tokens) never
+ * reset the guard — they carry no budget signal. In practice tokens only
+ * accumulate, so the reset is defensive; the guard mainly protects against
+ * double counting across process restarts via the persisted flag.
+ */
+function countBreach(metrics: TokenMetrics, delta: TokenDelta): void {
+  if (delta.breach) {
+    if (!metrics.breach_counted) {
+      metrics.budget_breaches++
+      metrics.breach_counted = true
+    }
+  } else if (delta.compactions === 0) {
+    metrics.breach_counted = false
+  }
 }
 
 function cacheHitRate(metrics: TokenMetrics): number {
@@ -581,6 +619,7 @@ function emptyMetrics(): TokenMetrics {
     budget_breaches: 0,
     compactions: 0,
     cache_hit_rate: 0,
+    breach_counted: false,
   }
 }
 

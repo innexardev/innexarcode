@@ -392,27 +392,31 @@ describe("SessionRunCoordinator", () => {
     ),
   )
 
-  it.effect("trampolines synchronous self-waking execution", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const limit = 20_000
-        const completed = yield* Deferred.make<void>()
-        let runs = 0
-        let wake: (key: string) => Effect.Effect<void> = () => Effect.void
-        const coordinator = yield* SessionRunCoordinator.make<string, never>({
-          drain: (key) =>
-            Effect.sync(() => ++runs).pipe(
-              Effect.tap((run) => (run < limit ? wake(key) : Deferred.succeed(completed, undefined))),
-              Effect.asVoid,
-            ),
-        })
-        wake = coordinator.wake
+  it.effect(
+    "trampolines synchronous self-waking execution",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const limit = 20_000
+          const completed = yield* Deferred.make<void>()
+          let runs = 0
+          let wake: (key: string) => Effect.Effect<void> = () => Effect.void
+          const coordinator = yield* SessionRunCoordinator.make<string, never>({
+            drain: (key) =>
+              Effect.sync(() => ++runs).pipe(
+                Effect.tap((run) => (run < limit ? wake(key) : Deferred.succeed(completed, undefined))),
+                Effect.asVoid,
+              ),
+          })
+          wake = coordinator.wake
 
-        yield* coordinator.wake("session")
-        yield* Deferred.await(completed)
+          yield* coordinator.wake("session")
+          yield* Deferred.await(completed)
 
-        expect(runs).toBe(limit)
-      }),
-    ),
+          expect(runs).toBe(limit)
+        }),
+      ),
+    // flaky sob carga paralela — 5s (timeout default do bun) é insuficiente quando a suite roda completa; passa isolado
+    15_000,
   )
 })

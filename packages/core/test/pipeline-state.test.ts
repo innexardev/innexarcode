@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { PipelineStateMachine, PHASE_ORDER, PHASE_LABELS, PHASE_GATES, type Phase } from "@opencode-ai/core/pipeline/state"
+import { PipelineStateMachine, PHASE_ORDER, PHASE_LABELS, PHASE_GATES, statusFromJson, type Phase } from "@opencode-ai/core/pipeline/state"
 
 describe("PipelineStateMachine", () => {
   test("creates initial status with no phases", () => {
@@ -249,5 +249,119 @@ describe("Pipeline workspace isolation", () => {
     await sm.save(path)
     const loaded = await PipelineStateMachine.load(path)
     expect(loaded.getStatus().workspace).toBe("/srv/project-c")
+  })
+})
+
+describe("Pipeline transition log (P5)", () => {
+  test("startPhase records lastTransition with default author", () => {
+    const p = new PipelineStateMachine()
+    p.startPhase("discovery")
+    expect(p.getStatus().lastTransition).toEqual({
+      phase: "discovery",
+      action: "start",
+      by: process.env.USER ?? "unknown",
+      at: expect.any(Number) as unknown as number,
+    })
+  })
+
+  test("completePhase records author and artifact", () => {
+    const p = new PipelineStateMachine()
+    p.startPhase("discovery")
+    p.completePhase("discovery", "release-manager", "memory/architecture.md")
+    const s = p.getStatus()
+    expect(s.lastTransition?.action).toBe("complete")
+    expect(s.lastTransition?.by).toBe("release-manager")
+    expect(s.completedArtifacts?.["discovery"]).toBe("memory/architecture.md")
+  })
+
+  test("failPhase records transition with action fail", () => {
+    const p = new PipelineStateMachine()
+    p.startPhase("discovery")
+    p.failPhase("discovery", "boom", "qa")
+    expect(p.getStatus().lastTransition).toMatchObject({ action: "fail", by: "qa", phase: "discovery" })
+  })
+
+  test("lastTransition survives save/load roundtrip", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pipeline-transition-test-"))
+    const path = join(dir, "state.json")
+    const sm = new PipelineStateMachine(path)
+    sm.startPhase("discovery", "tester")
+    sm.completePhase("discovery", "tester", "docs/discovery.md")
+    await sm.save(path)
+    const loaded = await PipelineStateMachine.load(path)
+    const s = loaded.getStatus()
+    expect(s.lastTransition?.by).toBe("tester")
+    expect(s.completedArtifacts?.["discovery"]).toBe("docs/discovery.md")
+  })
+})
+
+describe("Pipeline status validation (P3)", () => {
+  test("statusFromJson rejects out-of-order completedPhases (hand-edited state)", () => {
+    const status = {
+      currentPhase: null,
+      completedPhases: ["discovery", "implementation"],
+      failedPhases: [],
+      gatesPassed: {},
+    }
+    expect(statusFromJson(status)).toBeNull()
+  })
+
+  test("statusFromJson rejects unknown phase in completedPhases", () => {
+    const status = {
+      currentPhase: null,
+      completedPhases: ["discovery", "bogus"],
+      failedPhases: [],
+      gatesPassed: {},
+    }
+    expect(statusFromJson(status)).toBeNull()
+  })
+
+  test("statusFromJson rejects non-boolean gatesPassed", () => {
+    const status = {
+      currentPhase: null,
+      completedPhases: [],
+      failedPhases: [],
+      gatesPassed: { build: "yes" },
+    }
+    expect(statusFromJson(status)).toBeNull()
+  })
+
+  test("statusFromJson rejects duplicate completedPhases", () => {
+    const status = {
+      currentPhase: null,
+      completedPhases: ["discovery", "discovery"],
+      failedPhases: [],
+      gatesPassed: {},
+    }
+    expect(statusFromJson(status)).toBeNull()
+  })
+
+  test("statusFromJson accepts a valid prefix state", () => {
+    const status = {
+      currentPhase: null,
+      completedPhases: ["discovery", "research"],
+      failedPhases: [],
+      gatesPassed: {},
+    }
+    expect(statusFromJson(status)).not.toBeNull()
+  })
+
+  test("load discards hand-edited state file and starts fresh", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pipeline-invalid-test-"))
+    const path = join(dir, "state.json")
+    writeFileSync(
+      path,
+      JSON.stringify({
+        currentPhase: null,
+        completedPhases: ["discovery", "implementation"],
+        failedPhases: [],
+        gatesPassed: {},
+        startedAt: 1,
+        updatedAt: 1,
+      }),
+    )
+    const sm = await PipelineStateMachine.load(path)
+    expect(sm.getStatus().completedPhases).toEqual([])
+    expect(sm.getStatus().currentPhase).toBeNull()
   })
 })

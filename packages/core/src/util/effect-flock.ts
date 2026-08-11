@@ -7,6 +7,7 @@ import type { PlatformError } from "effect/PlatformError"
 import { FSUtil } from "../fs-util"
 import { Global } from "../global"
 import { makeGlobalNode } from "../effect/app-node"
+import { Flock } from "./flock"
 import { Hash } from "./hash"
 
 export namespace EffectFlock {
@@ -162,6 +163,26 @@ export namespace EffectFlock {
         return now - mtimeMs(dir) > STALE_MS
       })
 
+      const ownerAlive = Effect.fnUntraced(function* (metaPath: string) {
+        // Never steal a stale lock whose recorded owner still exists — it may
+        // be alive but slow (stuck event loop, failed heartbeat). Legacy meta
+        // without a pid, or an unreadable/missing meta, keeps the stale-steal
+        // path. PID reuse risk accepted and bounded by STALE_MS + TIMEOUT_MS.
+        const pid = yield* fs
+          .readFileString(metaPath)
+          .pipe(
+            Effect.map((raw) => {
+              try {
+                return (JSON.parse(raw) as Record<string, unknown>).pid
+              } catch {
+                return undefined
+              }
+            }),
+            Effect.catch(() => Effect.succeed(undefined)),
+          )
+        return Flock.pidAlive(pid)
+      })
+
       // -- single lock attempt --
 
       type Handle = { token: string; metaPath: string; heartbeatPath: string; lockDir: string }
@@ -177,6 +198,7 @@ export namespace EffectFlock {
 
           if (!created) {
             if (!(yield* isStale(lockDir, heartbeatPath, metaPath))) return yield* new NotAcquired()
+            if (yield* ownerAlive(metaPath)) return yield* new NotAcquired()
 
             // Stale — race for breaker ownership
             const breakerPath = lockDir + ".breaker"

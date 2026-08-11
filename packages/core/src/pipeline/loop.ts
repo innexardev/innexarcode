@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { mkdir, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname } from "node:path"
+import { dirname, basename } from "node:path"
 import { Option, Schema } from "effect"
 import { PHASE_ORDER, type Phase } from "./state"
 import type { PipelineStateMachine } from "./state"
+import { cleanupOrphanedTmp } from "./persist"
 
 export const LoopStatus = Schema.Union([
   Schema.Literal("idle"),
@@ -321,6 +322,7 @@ export class LoopEngine {
   }
 
   private async loadState(): Promise<LoopState | null> {
+    cleanupOrphanedTmp(dirname(this.filePath), basename(this.filePath))
     try {
       const text = await Bun.file(this.filePath).text()
       return Option.getOrNull(Schema.decodeUnknownOption(LoopState)(JSON.parse(text)))

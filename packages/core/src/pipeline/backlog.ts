@@ -4,7 +4,8 @@ import { Option, Schema } from "effect"
 import { createHash, randomUUID } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { dirname } from "node:path"
+import { dirname, basename } from "node:path"
+import { cleanupOrphanedTmp } from "./persist"
 
 export function fingerprint(message: string): string {
   return createHash("md5").update(message).digest("hex").slice(0, 8)
@@ -97,6 +98,7 @@ export class BacklogEngine {
   private ensureLoaded(): void {
     if (this.loaded) return
     this.loaded = true
+    cleanupOrphanedTmp(dirname(this.filePath), basename(this.filePath))
     try {
       if (!existsSync(this.filePath)) return
       const parsed = JSON.parse(readFileSync(this.filePath, "utf8")) as unknown

@@ -113,6 +113,14 @@ async function readJson<T>(p: string): Promise<T> {
   return JSON.parse(await fs.readFile(p, "utf8"))
 }
 
+/** Pid of a child process that has already exited — guaranteed dead at write time. */
+function deadPid() {
+  return new Promise<number>((resolve) => {
+    const probe = spawn(process.execPath, ["-e", ""], { stdio: "ignore" })
+    probe.on("close", () => resolve(probe.pid ?? 0))
+  })
+}
+
 describe("util.flock", () => {
   test("enforces mutual exclusion under process contention", async () => {
     await using tmp = await tmpdir()
@@ -369,8 +377,12 @@ describe("util.flock", () => {
     const err = await Flock.withLock(
       key,
       async () => {
-        const json = await readJson<{ token?: string }>(meta)
+        const json = await readJson<{ token?: string; pid?: number }>(meta)
         json.token = "tampered"
+        // Record a provably dead owner: since the liveness check (kill(pid,0))
+        // blocks stealing from a live pid, stale recovery only applies once the
+        // recorded owner is gone. This process still lives, so use a dead pid.
+        json.pid = await deadPid()
         await fs.writeFile(meta, JSON.stringify(json, null, 2))
       },
       {

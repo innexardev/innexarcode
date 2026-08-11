@@ -4,8 +4,9 @@ import { Option, Schema } from "effect"
 import { createHash, randomUUID } from "node:crypto"
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, join, basename } from "node:path"
 import type { BacklogEngine } from "./backlog"
+import { cleanupOrphanedTmp } from "./persist"
 
 export const EventLevel = Schema.Union([
   Schema.Literal("info"),
@@ -75,6 +76,7 @@ export class ObservabilityEngine {
   private ensureLoaded(): void {
     if (this.loaded) return
     this.loaded = true
+    cleanupOrphanedTmp(dirname(this.filePath), basename(this.filePath))
     try {
       if (!existsSync(this.filePath)) return
       const parsed = JSON.parse(readFileSync(this.filePath, "utf8")) as unknown

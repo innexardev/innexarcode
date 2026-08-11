@@ -171,6 +171,38 @@ describe("TokenEconomy", () => {
     }
   })
 
+  test("budget breach counts once per crossing, not once per delta", () => {
+    const filePath = join(tmpdir(), `token-economy-crossing-${Date.now()}.json`)
+    try {
+      const engine = new TokenEconomy.TokenEconomyEngine(filePath)
+      // once above the agent budget every further delta breaches; only the
+      // crossing itself may count
+      engine.record("agent", 100_000, 0, 0)
+      engine.record("agent", 100_000, 0, 0)
+      engine.record("agent", 100_000, 0, 0)
+      engine.record("agent", 100_000, 0, 0)
+      let st = engine.status()
+      expect(st.total.budget_breaches).toBe(1)
+      expect(st.sessions["default"]?.budget_breaches).toBe(1)
+
+      // a budget raise reports being back under budget: the guard resets and a
+      // future crossing counts again
+      const raised: TokenEconomy.BudgetConfig = {
+        ...TokenEconomy.DEFAULT_BUDGETS,
+        ...TokenEconomy.DEFAULT_THRESHOLDS,
+        agent: 1_000_000,
+      }
+      engine.record("agent", 100, 0, 0, "default", { budgets: raised })
+      st = engine.status()
+      expect(st.total.budget_breaches).toBe(1)
+
+      engine.record("agent", 100_000, 0, 0)
+      expect(engine.status().total.budget_breaches).toBe(2)
+    } finally {
+      unlinkSync(filePath)
+    }
+  })
+
   test("concurrent writers merge instead of last-write-wins", () => {
     const filePath = join(tmpdir(), `token-economy-merge-${Date.now()}.json`)
     try {
