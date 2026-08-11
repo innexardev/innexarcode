@@ -497,7 +497,9 @@ export class TokenEconomyEngine {
 
   status(): TokenEconomyState {
     this.ensureLoaded()
-    const sessions: Record<string, TokenMetrics> = {}
+    // null-prototype clone: `__proto__` (allowed by sanitizeSessionKey) must stay an own
+    // property on the returned view, never a prototype mutation of the clone itself.
+    const sessions: Record<string, TokenMetrics> = Object.create(null)
     for (const [key, metrics] of Object.entries(this.state.sessions)) {
       sessions[key] = { ...metrics }
     }

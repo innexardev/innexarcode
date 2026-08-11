@@ -405,6 +405,25 @@ describe("TokenEconomy", () => {
     }
   })
 
+  test("status() clone keeps __proto__ session as own property (regression M-1)", () => {
+    const filePath = join(tmpdir(), `token-economy-clone-${Date.now()}.json`)
+    try {
+      const engine = new TokenEconomy.TokenEconomyEngine(filePath)
+      engine.recordCompaction("__proto__")
+      const st = engine.status()
+      // the read surface must show the session, not lose it to the prototype setter
+      expect(Object.hasOwn(st.sessions, "__proto__")).toBe(true)
+      expect(st.sessions["__proto__"].compactions).toBe(1)
+      // and the clone itself must not have mutated a shared prototype
+      expect(Object.prototype.hasOwnProperty.call(Object.prototype, "compactions")).toBe(false)
+      // prototype-chain lookups on the clone must stay undefined (tool M-2 guard)
+      expect((st.sessions as Record<string, unknown>)["toString"]).toBeUndefined()
+      expect((st.sessions as Record<string, unknown>)["constructor"]).toBeUndefined()
+    } finally {
+      unlinkSync(filePath)
+    }
+  })
+
   test("metrics file is written with mode 0600", () => {
     const filePath = join(tmpdir(), `token-economy-mode-${Date.now()}.json`)
     try {

@@ -85,9 +85,9 @@ Each layer uses `mergeDeep` with array concatenation for `instructions`. Plugin 
 ## ADR-014 — Token Economy (2026-08-10)
 - Módulo puro em `packages/core/src/pipeline/token-economy.ts`, exportado via pipeline/index.ts.
 - Invariante cache-safe: camadas 0 (estável) → 1 (semi-estável) → 2 (volátil); nunca volatile antes de stable; `CacheOrderViolation` throw.
-- Budgets: session 1M / agent 300K / subagent 100K; thresholds compact 0.8 / finalize 0.9 / stop 1.0 (env TOKEN_ECONOMY_BUDGET_*).
-- Métricas atômicas em ~/.opencode/token-economy.json (tmp+rename).
+- Budgets: session 1M / agent 300K / subagent 100K; thresholds compact 0.8 / finalize 0.9 / stop 1.0 (env TOKEN_ECONOMY_BUDGET_*). Semântica real: ratio >=1.0 → "stop", >=0.9 → "finalize", NaN → stop.
+- Métricas atômicas em ~/.opencode/token-economy.json (tmp+rename, modo 0600, estado null-prototype, chaves sanitizadas, max 500 sessões).
 - Compactação estruturada `{goal, decisions, files_changed, pending_tasks, blockers, next_step}` alinhada ao SUMMARY_TEMPLATE.
 - Anti-goals v1: cache_control breakpoints, prompt_cache_key, model routing, RAG, token firewall.
 - Custo default $3/M input, $15/M output, cached 0.1x (env TOKEN_ECONOMY_COST_*).
-- Implementado em 2026-08-10 (commit pendente).
+- **Status: Accepted** — implementado em 2026-08-10 (commits 28 na branch dev; feed real de tokens ligado na compactação; gate advisory `token-economy` registrado). Coletor L0/L1/L2 e formatter estruturado existem como biblioteca; integração no caminho real de build de prompt fica como trabalho futuro (docs 14.2/14.3 refletem isso).

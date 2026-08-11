@@ -25,7 +25,12 @@ export const TokenEconomyTool = Tool.define<typeof Parameters, Metadata, never>(
         Effect.gen(function* () {
           const engine = new TokenEconomy.TokenEconomyEngine()
           const st = engine.status()
-          const metrics = params.session ? st.sessions[params.session] ?? st.total : st.total
+          // Own-property lookup only: untrusted keys like "toString"/"constructor" must
+          // never fall through the prototype chain and produce a NaN-based false stop.
+          const metrics =
+            params.session && Object.hasOwn(st.sessions, params.session)
+              ? st.sessions[params.session]
+              : st.total
           const suffix = params.session ? ` (session: ${params.session})` : ""
           if (params.command === "compact") {
             engine.recordCompaction(params.session ?? "default")
