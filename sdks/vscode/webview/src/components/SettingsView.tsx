@@ -49,6 +49,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSaveSett
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 text-xs">
+        {/* Server Connection Section */}
+        <div className="space-y-3 bg-[#252526] p-4 rounded-xl border border-[#3c3c3c]">
+          <h3 className="text-xs font-semibold text-zinc-200 flex items-center space-x-2 border-b border-[#3c3c3c] pb-2">
+            <Shield className="w-3.5 h-3.5 text-emerald-400" />
+            <span>EngOS Server & Authentication</span>
+          </h3>
+
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="block text-[11px] text-zinc-400 mb-1">Server Port</label>
+              <input
+                type="number"
+                value={form.serverPort ?? 16384}
+                onChange={(e) => setForm({ ...form, serverPort: parseInt(e.target.value) || 16384 })}
+                className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 font-mono text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-zinc-400 mb-1">Server Username</label>
+              <input
+                type="text"
+                value={form.serverUsername ?? 'opencode'}
+                onChange={(e) => setForm({ ...form, serverUsername: e.target.value })}
+                placeholder="opencode"
+                className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 font-mono text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-zinc-400 mb-1">Server Password (Basic Auth)</label>
+              <input
+                type="password"
+                value={form.serverPassword ?? ''}
+                onChange={(e) => setForm({ ...form, serverPassword: e.target.value })}
+                placeholder="Optional password"
+                className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-1.5 text-zinc-200 focus:outline-none focus:border-blue-500 font-mono text-xs"
+              />
+            </div>
+            <div className="pt-1">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.autoStartServer ?? true}
+                  onChange={(e) => setForm({ ...form, autoStartServer: e.target.checked })}
+                  className="rounded bg-[#1e1e1e] border-[#3c3c3c] text-blue-600 focus:ring-0"
+                />
+                <span className="text-zinc-300">Auto-start local EngOS server on activation</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         {/* API Keys Section */}
         <div className="space-y-3 bg-[#252526] p-4 rounded-xl border border-[#3c3c3c]">
           <h3 className="text-xs font-semibold text-zinc-200 flex items-center space-x-2 border-b border-[#3c3c3c] pb-2">

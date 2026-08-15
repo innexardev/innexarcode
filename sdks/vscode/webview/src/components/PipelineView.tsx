@@ -2,12 +2,20 @@ import React from 'react';
 import { PipelinePhase } from '../types';
 import { CheckCircle2, Clock, AlertCircle, Play, ArrowRight, ShieldCheck } from 'lucide-react';
 
+interface ServerStatusInfo {
+  connected: boolean;
+  port?: number;
+  version?: string;
+  error?: string;
+}
+
 interface PipelineViewProps {
   phases: PipelinePhase[];
   onTriggerPhase: (phaseId: string) => void;
+  serverStatus: ServerStatusInfo;
 }
 
-export const PipelineView: React.FC<PipelineViewProps> = ({ phases, onTriggerPhase }) => {
+export const PipelineView: React.FC<PipelineViewProps> = ({ phases, onTriggerPhase, serverStatus }) => {
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] text-zinc-100 overflow-y-auto p-4 space-y-4">
       <div className="flex items-center justify-between border-b border-[#3c3c3c] pb-3">
@@ -27,6 +35,23 @@ export const PipelineView: React.FC<PipelineViewProps> = ({ phases, onTriggerPha
           <Play className="w-3.5 h-3.5 fill-current" />
           <span>Run Pipeline</span>
         </button>
+      </div>
+
+      {/* Connection Status Indicator */}
+      <div className={`flex items-center justify-between p-3 rounded-xl border text-xs ${
+        serverStatus.connected
+          ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
+          : 'bg-amber-950/20 border-amber-500/30 text-amber-300'
+      }`}>
+        <div className="flex items-center space-x-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${serverStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="font-medium">
+            {serverStatus.connected
+              ? `EngOS Server Online (Port ${serverStatus.port ?? 16384})${serverStatus.version ? ` • ${serverStatus.version}` : ''}`
+              : `EngOS Server Offline${serverStatus.error ? `: ${serverStatus.error}` : ''}`}
+          </span>
+        </div>
+        <span className="text-[10px] opacity-80">13-Phase Pipeline</span>
       </div>
 
       <div className="space-y-2.5">
